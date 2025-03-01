@@ -1,3 +1,4 @@
+import sys
 import math
 import time
 import pygame
@@ -45,6 +46,8 @@ def draw_multicolor_segment(surface, start, end, colors, width=1):
         start_off = (start[0] + ux * off, start[1] + uy * off)
         end_off = (end[0] + ux * off, end[1] + uy * off)
         pygame.draw.line(surface, color, start_off, end_off, width)
+
+global_min_distance = 10**9
 
 #############################################################################################
 class PolyhexCandidate:
@@ -168,6 +171,7 @@ class PolyhexCandidate:
 
     #---------------------------------------------------------------
     def is_valid_loop(self):
+        global global_min_distance
         start = (0, 0)
         direction = 0
         current = start
@@ -177,28 +181,31 @@ class PolyhexCandidate:
             direction = (direction + turn) % 6
             move = PolyhexCandidate._neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
+        distance = abs(current[0] - start[0]) + abs(current[1] - start[1])
+        if distance < global_min_distance:
+            global_min_distance = distance  # Update global if new distance is smaller
         return (current == (0, 0)) and (direction == 0)
 
     #---------------------------------------------------------------
     def is_self_intersecting(self):
         start = (0, 0)
-        candidate_path = [start]
+        visited = {start}
         direction = 0
         current = start
         for i, turn in enumerate(self.angles):
             if turn is None:
-                return False  # Incomplete path, assume no self-intersection
+                return False
             direction = (direction + turn) % 6
             move = PolyhexCandidate._neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
             if i < len(self.angles) - 1:
-                if current in candidate_path:
-                    return True  # Self-intersection found
+                if current in visited:
+                    return True
             else:
-                if current != start and current in candidate_path:
-                    return True  # Self-intersection found
-            candidate_path.append(current)
-        return False  # No self-intersection found
+                if current != start and current in visited:
+                    return True
+            visited.add(current)
+        return False
 
     # Helper methods added to PolyhexCandidate
     #---------------------------------------------------------------
@@ -390,13 +397,19 @@ if __name__ == '__main__':
 #     print("Initialization Status:", initStatus)
 #     candidate.draw_schema()
 #     wait_for_keypress()
-    MAX_SIZE = 100
+    MAX_SIZE = 200
     start_time = time.time()
     print("Starting loop")
-    for size in range(6, MAX_SIZE + 1, 2):
+    for size in range(100, MAX_SIZE + 1, 2):
         elapsed_time = time.time() - start_time
-        print(f"size={size} | Time elapsed: {elapsed_time:.2f} seconds")
-        for idx_b_pole in range(1, size//2):
+        header = f"size={size} starting. {elapsed_time:.2f}s from init. "
+        print(header, end="", flush=True)
+        global_min_distance = 10**9
+        total = size // 2
+        for idx_b_pole in range(1, total):
+            percentage = (idx_b_pole / total) * 100
+            sys.stdout.write(f"\r{header}{percentage:.1f}% {global_min_distance}             ")
+            sys.stdout.flush()
             for a_offset in range(1, size):
                 for b_offset in range(1, size):
                     for a_flip in [False, True]:
@@ -408,3 +421,4 @@ if __name__ == '__main__':
                             candidate.backtrack_components()
                             # candidate.draw_schema()
                             # wait_for_keypress()
+        print("")
