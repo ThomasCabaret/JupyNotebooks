@@ -24,6 +24,7 @@ def axial_to_cartesian(coord, edge_length=1):
     new_y = x * sin_a + y * cos_a
     return (new_x, new_y)
 
+#---------------------------------------------------------------
 def convert_path_to_cartesian(path, edge_length=1):
     return [axial_to_cartesian(pt, edge_length) for pt in path]
 
@@ -57,6 +58,12 @@ class PolyhexCandidate:
         self.b_flip = b_flip
         # rest done in initSearchState (cannot be called here as it can fail)
 
+    #---------------------------------------------------------------
+    def __str__(self):
+        return (f"PolyhexCandidate(size={self.size}, idx_b_pole={self.idx_b_pole}, "
+                f"a_offset={self.a_offset}, b_offset={self.b_offset}, "
+                f"a_flip={self.a_flip}, b_flip={self.b_flip}, angles={self.angles})")
+
     # Neighbor directions for hex grid (axial coordinates)
     _neighbors = [
         (1, 0),    # 0: east
@@ -67,6 +74,16 @@ class PolyhexCandidate:
         (1, -1)    # 5: northeast
     ]
 
+    #---------------------------------------------------------------
+    def print_graph(self):
+        matrix = [[0] * self.size for _ in range(self.size)]
+        for i, neighbors in self.graph.items():
+            for j in neighbors:
+                matrix[i][j] = 1
+        for row in matrix:
+            print(" ".join(str(cell) for cell in row))
+
+    #---------------------------------------------------------------
     def build_graph(self):
         graph = {i: set() for i in range(self.size)}
         # Mapping A (same as in draw_schema)
@@ -75,7 +92,7 @@ class PolyhexCandidate:
         end_a_proj = (end_a + self.a_offset) % self.size if not self.a_flip else (start_a + self.a_offset) % self.size
         for i in range(1, self.idx_b_pole): # We do not connect bondaries to their projection
             if self.a_flip:
-                j = (end_a_proj - i) % self.size
+                j = (start_a_proj - i) % self.size
             else:
                 j = (start_a_proj + i) % self.size
             graph[start_a + i].add(j)
@@ -86,13 +103,14 @@ class PolyhexCandidate:
         end_b_proj = (end_b + self.b_offset) % self.size if not self.b_flip else (start_b + self.b_offset) % self.size
         for i in range(1, self.size - self.idx_b_pole):
             if self.b_flip:
-                j = (end_b_proj - i) % self.size
+                j = (start_b_proj - i) % self.size
             else:
                 j = (start_b_proj + i) % self.size
             graph[start_b + i].add(j)
             graph[j].add(start_b + i)
         return graph
 
+    #---------------------------------------------------------------
     def get_components(self):
         visited = [False] * self.size
         components = []
@@ -111,6 +129,7 @@ class PolyhexCandidate:
                 components.append(comp)
         return components
 
+    #---------------------------------------------------------------
     def propagate_component(self, comp, changes):
         queue = deque([i for i in comp if self.angles[i] is not None])
         while queue:
@@ -127,6 +146,7 @@ class PolyhexCandidate:
                     return False
         return True
     
+    #---------------------------------------------------------------
     def propagate_fixed(self):
         for comp in self.components:
             changes = []
@@ -136,6 +156,7 @@ class PolyhexCandidate:
                 return False
         return True
 
+    #---------------------------------------------------------------
     def can_loop(self, target=6):
         current_sum = sum(a for a in self.angles if a is not None)
         remaining_nones = self.angles.count(None)
@@ -145,6 +166,7 @@ class PolyhexCandidate:
         min_possible_sum = current_sum - remaining_nones
         return min_possible_sum <= target <= max_possible_sum
 
+    #---------------------------------------------------------------
     def is_valid_loop(self):
         start = (0, 0)
         direction = 0
@@ -157,26 +179,60 @@ class PolyhexCandidate:
             current = (current[0] + move[0], current[1] + move[1])
         return (current == (0, 0)) and (direction == 0)
 
+    #---------------------------------------------------------------
     def is_self_intersecting(self):
         start = (0, 0)
         candidate_path = [start]
         direction = 0
         current = start
         for i, turn in enumerate(self.angles):
+            if turn is None:
+                return False  # Incomplete path, assume no self-intersection
             direction = (direction + turn) % 6
             move = PolyhexCandidate._neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
             if i < len(self.angles) - 1:
                 if current in candidate_path:
-                    return True
+                    return True  # Self-intersection found
             else:
                 if current != start and current in candidate_path:
-                    return True
+                    return True  # Self-intersection found
             candidate_path.append(current)
-        return False
+        return False  # No self-intersection found
 
+    # Helper methods added to PolyhexCandidate
+    #---------------------------------------------------------------
+    def compute_mapping_range(self, count, offset, flip, base_nonflip, base_flip):
+        mapping = []
+        for i in range(count):
+            if not flip:
+                mapping.append((base_nonflip + offset + i) % self.size)
+            else:
+                mapping.append((base_flip + offset - i) % self.size)
+        return mapping
+
+    #---------------------------------------------------------------
+    def compute_mappings(self):
+        mappedA = self.compute_mapping_range(self.idx_b_pole + 1, self.a_offset, self.a_flip, 0, self.idx_b_pole)
+        mappedB = self.compute_mapping_range(self.size - self.idx_b_pole + 1, self.b_offset, self.b_flip, self.idx_b_pole, 0)
+        return mappedA, mappedB
+
+    #---------------------------------------------------------------
+    def draw_edges_helper(self, screen, points, mappedA, mappedB):
+        for i in range(len(points) - 1):
+            next_i = i + 1
+            base_color = (255, 0, 0) if (1 <= next_i <= self.idx_b_pole) else (0, 0, 255)
+            mappingA_color = (255, 0, 0) if (i in mappedA and next_i in mappedA) else None
+            mappingB_color = (0, 0, 255) if (i in mappedB and next_i in mappedB) else None
+            draw_multicolor_segment(screen, points[i], points[next_i],
+                                    colors=[base_color, mappingA_color, mappingB_color],
+                                    width=6)
+
+    #---------------------------------------------------------------
     def draw(self, edge_length=40, window_size=(800, 600)):
-        fixed_point = (-1, 0)
+        pygame.display.set_caption(str(self))
+        screen = pygame.display.set_mode(window_size)
+        screen.fill((255, 255, 255))
         candidate_start = (0, 0)
         candidate_path = [candidate_start]
         direction = 0
@@ -186,54 +242,33 @@ class PolyhexCandidate:
             move = PolyhexCandidate._neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
             candidate_path.append(current)
-        full_path = [fixed_point] + candidate_path + [fixed_point]
-        valid = self.is_valid_loop()
-        cartesian_path = [axial_to_cartesian(pt, edge_length) for pt in full_path]
+        #fixed_point = (-1, 0)
+        #full_path = [fixed_point] + candidate_path + [fixed_point]
+        cartesian_path = [axial_to_cartesian(pt, edge_length) for pt in candidate_path]
         xs = [pt[0] for pt in cartesian_path]
         ys = [pt[1] for pt in cartesian_path]
         offset_x = (window_size[0] - (max(xs) - min(xs))) / 2 - min(xs)
         offset_y = (window_size[1] - (max(ys) - min(ys))) / 2 - min(ys)
-
-        def draw_dotted_line(surf, color, start_pos, end_pos, dot_spacing=5, dot_radius=2):
-            dx = end_pos[0] - start_pos[0]
-            dy = end_pos[1] - start_pos[1]
-            dist = math.hypot(dx, dy)
-            if dist == 0:
-                return
-            steps = int(dist / dot_spacing)
-            for i in range(steps + 1):
-                t = i / steps
-                x = start_pos[0] + t * dx
-                y = start_pos[1] + t * dy
-                pygame.draw.circle(surf, color, (int(x), int(y)), dot_radius)
-
-        screen = pygame.display.set_mode(window_size)
-        pygame.display.set_caption("Polyhex Candidate")
-        font = pygame.font.Font(None, 20)
-        screen.fill((255, 255, 255))
         adjusted_points = [(pt[0] + offset_x, pt[1] + offset_y) for pt in cartesian_path]
-
-        # Draw edges: red for edges from index 0 to idx_b_pole, blue for the rest
-        for i in range(len(adjusted_points) - 1):
-            if 1 <= i <= self.idx_b_pole:
-                color = (255, 0, 0)
-            else:
-                color = (0, 0, 255)
-            pygame.draw.line(screen, color, adjusted_points[i], adjusted_points[i+1], 2)
-
-        # Draw vertices with labels if assigned
-        for idx in range(len(candidate_path)):
-            pos = adjusted_points[idx + 1]
+        # Draw edges:
+        mappedA, mappedB = self.compute_mappings()
+        self.draw_edges_helper(screen, adjusted_points, mappedA, mappedB)
+        # Draw labels:
+        font = pygame.font.SysFont("Consolas", 14, bold=True)
+        for idx, pos in enumerate(adjusted_points):
             pygame.draw.circle(screen, (0, 0, 0), (int(pos[0]), int(pos[1])), 4)
-            label = "{} ({})".format(idx, self.angles[idx])
-            text_surface = font.render(label, True, (0, 0, 0))
-            screen.blit(text_surface, (pos[0] + 5, pos[1] - 5))
-
-        if not valid:
-            draw_dotted_line(screen, (128, 128, 128), adjusted_points[-1], adjusted_points[0])
+            if idx < len(self.angles) and self.angles[idx] is not None:
+                label = "{} ({})".format(idx, self.angles[idx])
+                text_surface = font.render(label, True, (0, 0, 0))
+                # Position the text so that its midleft is at (pos[0] + shift, pos[1])
+                text_rect = text_surface.get_rect(midleft=(int(pos[0]) + 5, int(pos[1])))
+                screen.blit(text_surface, text_rect)
         pygame.display.flip()
 
+    #---------------------------------------------------------------
     def draw_schema(self, window_size=(800, 800), radius=300):
+        self.print_graph()
+        pygame.display.set_caption(str(self))
         screen = pygame.display.set_mode(window_size)
         screen.fill((255, 255, 255))
         center = (window_size[0] // 2, window_size[1] // 2)
@@ -243,23 +278,8 @@ class PolyhexCandidate:
             x = center[0] + radius * math.cos(angle_rad)
             y = center[1] + radius * math.sin(angle_rad)
             positions.append((x, y))
-        # Compute mapped vertices for mapping A and mapping B (preserving order)
-        mappedA = []
-        for i in range(self.idx_b_pole + 1):
-            if self.a_flip:
-                mappedA.append((self.idx_b_pole + self.a_offset - i) % self.size)
-            else:
-                mappedA.append((i + self.a_offset) % self.size)
-        mappedB = []
-        for i in range(self.size - self.idx_b_pole + 1):
-            if self.b_flip:
-                mappedB.append((self.b_offset - i) % self.size)
-            else:
-                mappedB.append((self.idx_b_pole + self.b_offset + i) % self.size)
-        # Draw polygon edges as tricolor segments:
-        #   - Base: red if next vertex in [1, idx_b_pole], blue otherwise.
-        #   - Mapping A track: red if both endpoints appear in mappedA.
-        #   - Mapping B track: blue if both endpoints appear in mappedB.
+        # Draw edges:
+        mappedA, mappedB = self.compute_mappings()
         for i in range(self.size):
             next_i = (i + 1) % self.size
             base_color = (255, 0, 0) if (1 <= next_i <= self.idx_b_pole) else (0, 0, 255)
@@ -270,16 +290,16 @@ class PolyhexCandidate:
                                     width=6)
         # Draw mapping connection lines:
         # Mapping A: draw a red line from each vertex (0 to idx_b_pole) to its mapped vertex.
-        for i in range(self.idx_b_pole + 1):
+        for i in range(self.idx_b_pole):
             if self.a_flip:
                 dest = (self.idx_b_pole + self.a_offset - i) % self.size
             else:
-                dest = (i + self.a_offset) % self.size
+                dest = (self.a_offset + i) % self.size
             # Check that the connection exists in the graph before drawing
             if dest in self.graph[i]:
                 pygame.draw.line(screen, (255, 0, 0), positions[i], positions[dest], 1)
         # Mapping B: draw a blue line from each vertex (starting at idx_b_pole) to its mapped vertex.
-        for i in range(self.size - self.idx_b_pole + 1):
+        for i in range(self.size - self.idx_b_pole):
             origin = (self.idx_b_pole + i) % self.size
             if self.b_flip:
                 dest = (self.b_offset - i) % self.size
@@ -288,25 +308,24 @@ class PolyhexCandidate:
             # Check that the connection exists in the graph before drawing
             if dest in self.graph[origin]:
                 pygame.draw.line(screen, (0, 0, 255), positions[origin], positions[dest], 1)
-        # Draw vertices and labels if assigned.
-        font = pygame.font.Font(None, 50)
+        # Draw labels:
+        font = pygame.font.SysFont("Consolas", 14, bold=True)
         for i, pos in enumerate(positions):
             pygame.draw.circle(screen, (0, 0, 0), (int(pos[0]), int(pos[1])), 5)
             if self.angles[i] is not None:
                 label = str(self.angles[i])
-                text_surface = font.render(label, True, (0, 0, 0), (255, 255, 255))
+                text_surface = font.render(label, True, (0, 0, 0))
                 text_rect = text_surface.get_rect(center=(int(pos[0]), int(pos[1]) - 10))
                 screen.blit(text_surface, text_rect)
         pygame.display.flip()
 
+    #---------------------------------------------------------------
     def initSearchState(self):
         # Build graph and deduce its connected subgraphs
         self.graph = self.build_graph()
         self.components = self.get_components()
-
         # Ensure all angles start as None
-        self.angles = [None] * self.size  
-
+        self.angles = [None] * self.size
         # Set initial fixed angles
         self.angles[0] = 1
         self.angles[self.idx_b_pole % self.size] = 1
@@ -314,7 +333,6 @@ class PolyhexCandidate:
         self.angles[(self.idx_b_pole + self.a_offset) % self.size] = 1
         self.angles[self.b_offset % self.size] = 1
         self.angles[(self.idx_b_pole + self.b_offset) % self.size] = 1
-
         if not self.propagate_fixed():
             return False
         for comp in self.components:
@@ -336,11 +354,12 @@ class PolyhexCandidate:
                                     return False
         return True
 
+    #---------------------------------------------------------------
     def backtrack_components(self, comp_index=0):
-        if not self.can_loop():
+        if not self.can_loop() or self.is_self_intersecting():
             return
         if comp_index == len(self.components):
-            if self.is_valid_loop() and not self.is_self_intersecting():
+            if self.is_valid_loop():
                 print("Valid candidate:", self.angles)
                 self.draw()
                 wait_for_keypress();
