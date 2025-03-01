@@ -6,6 +6,7 @@ import itertools
 from collections import deque
 
 # Interaction helpers
+#---------------------------------------------------------------
 def wait_for_keypress():
     running = True
     while running:
@@ -14,6 +15,7 @@ def wait_for_keypress():
                 running = False
 
 # Maths helpers
+#---------------------------------------------------------------
 def axial_to_cartesian(coord, edge_length=1):
     i, j = coord
     x = edge_length * (1.5 * i)
@@ -24,6 +26,12 @@ def axial_to_cartesian(coord, edge_length=1):
     new_x = x * cos_a - y * sin_a
     new_y = x * sin_a + y * cos_a
     return (new_x, new_y)
+
+#---------------------------------------------------------------
+def hex_distance(axial1, axial2):
+    q1, r1 = axial1
+    q2, r2 = axial2
+    return (abs(q1 - q2) + abs(r1 - r2) + abs((q1 + r1) - (q2 + r2))) // 2
 
 #---------------------------------------------------------------
 def convert_path_to_cartesian(path, edge_length=1):
@@ -161,13 +169,33 @@ class PolyhexCandidate:
 
     #---------------------------------------------------------------
     def can_loop(self, target=6):
+        global global_min_distance
+        # Turns check
         current_sum = sum(a for a in self.angles if a is not None)
         remaining_nones = self.angles.count(None)
-        # The maximum possible sum we can get by setting all None to 1
         max_possible_sum = current_sum + remaining_nones
-        # The minimum possible sum we can get by setting all None to -1
         min_possible_sum = current_sum - remaining_nones
-        return min_possible_sum <= target <= max_possible_sum
+        if not (min_possible_sum <= target <= max_possible_sum):
+            return False
+        # Moves check
+        start = (0, 0)
+        direction = 0
+        current = start
+        total_turns = 0
+        for turn in self.angles:
+            if turn is None:
+                break
+            total_turns = total_turns + 1
+            direction = (direction + turn) % 6
+            move = PolyhexCandidate._neighbors[direction]
+            current = (current[0] + move[0], current[1] + move[1])
+        required_steps = hex_distance(current, start)
+        if remaining_nones < required_steps:
+            return False
+        # distance = self.size - total_turns
+        if remaining_nones < global_min_distance:
+            global_min_distance = remaining_nones  # Update global if new distance is smaller
+        return True
 
     #---------------------------------------------------------------
     def is_valid_loop(self):
@@ -187,24 +215,52 @@ class PolyhexCandidate:
         return (current == (0, 0)) and (direction == 0)
 
     #---------------------------------------------------------------
+#     def is_self_intersecting(self):
+#         start = (0, 0)
+#         visited = {start}
+#         direction = 0
+#         current = start
+#         for i, turn in enumerate(self.angles):
+#             if turn is None:
+#                 return False
+#             direction = (direction + turn) % 6
+#             move = PolyhexCandidate._neighbors[direction]
+#             current = (current[0] + move[0], current[1] + move[1])
+#             if i < len(self.angles) - 1:
+#                 if current in visited:
+#                     return True
+#             else:
+#                 if current != start and current in visited:
+#                     return True
+#             visited.add(current)
+#         return False
+
+    #---------------------------------------------------------------
     def is_self_intersecting(self):
-        start = (0, 0)
-        visited = {start}
-        direction = 0
-        current = start
-        for i, turn in enumerate(self.angles):
-            if turn is None:
-                return False
-            direction = (direction + turn) % 6
-            move = PolyhexCandidate._neighbors[direction]
-            current = (current[0] + move[0], current[1] + move[1])
-            if i < len(self.angles) - 1:
+        n = self.size
+        i = 0
+        first_block = True
+        while i < n:
+            while i < n and self.angles[i] is None:
+                i += 1
+            if i >= n:
+                break
+            block_start = (0, 0)
+            visited = {block_start}
+            direction = 0
+            current = block_start
+            allowed_return = first_block
+            while i < n and self.angles[i] is not None:
+                turn = self.angles[i]
+                direction = (direction + turn) % 6
+                move = PolyhexCandidate._neighbors[direction]
+                current = (current[0] + move[0], current[1] + move[1])
                 if current in visited:
-                    return True
-            else:
-                if current != start and current in visited:
-                    return True
-            visited.add(current)
+                    if not (allowed_return and current == block_start and i == n-1):
+                        return True
+                visited.add(current)
+                i += 1
+            first_block = False
         return False
 
     # Helper methods added to PolyhexCandidate
@@ -363,13 +419,13 @@ class PolyhexCandidate:
 
     #---------------------------------------------------------------
     def backtrack_components(self, comp_index=0):
-        if not self.can_loop() or self.is_self_intersecting():
+        if self.is_self_intersecting() or not self.can_loop():
             return
         if comp_index == len(self.components):
-            if self.is_valid_loop():
-                print("Valid candidate:", self.angles)
-                self.draw()
-                wait_for_keypress();
+            #if self.is_valid_loop():
+            print("Valid candidate:", self.angles)
+            self.draw()
+            wait_for_keypress();
             return
         comp = self.components[comp_index]
         if any(self.angles[i] is None for i in comp):
@@ -400,7 +456,7 @@ if __name__ == '__main__':
     MAX_SIZE = 200
     start_time = time.time()
     print("Starting loop")
-    for size in range(100, MAX_SIZE + 1, 2):
+    for size in range(6, MAX_SIZE + 1, 2):
         elapsed_time = time.time() - start_time
         header = f"size={size} starting. {elapsed_time:.2f}s from init. "
         print(header, end="", flush=True)
