@@ -1,8 +1,33 @@
 import math
+import time
 import pygame
 import itertools
 from collections import deque
 
+# Interaction helpers
+def wait_for_keypress():
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or event.type == pygame.KEYDOWN:
+                running = False
+
+# Maths helpers
+def axial_to_cartesian(coord, edge_length=1):
+    i, j = coord
+    x = edge_length * (1.5 * i)
+    y = edge_length * (math.sqrt(3) * (j + i / 2))
+    angle = math.radians(-30)
+    cos_a = math.cos(angle)
+    sin_a = math.sin(angle)
+    new_x = x * cos_a - y * sin_a
+    new_y = x * sin_a + y * cos_a
+    return (new_x, new_y)
+
+def convert_path_to_cartesian(path, edge_length=1):
+    return [axial_to_cartesian(pt, edge_length) for pt in path]
+
+# Draw helpers
 def draw_multicolor_segment(surface, start, end, colors, width=1):
     dx = end[0] - start[0]
     dy = end[1] - start[1]
@@ -20,6 +45,7 @@ def draw_multicolor_segment(surface, start, end, colors, width=1):
         end_off = (end[0] + ux * off, end[1] + uy * off)
         pygame.draw.line(surface, color, start_off, end_off, width)
 
+#############################################################################################
 class PolyhexCandidate:
     def __init__(self, size, idx_b_pole, a_offset, b_offset, a_flip, b_flip):
         self.size = size
@@ -40,21 +66,6 @@ class PolyhexCandidate:
         (0, -1),   # 4: northwest
         (1, -1)    # 5: northeast
     ]
-
-    @staticmethod
-    def axial_to_cartesian(coord, edge_length=1):
-        i, j = coord
-        x = edge_length * (1.5 * i)
-        y = edge_length * (math.sqrt(3) * (j + i / 2))
-        angle = math.radians(-30)
-        cos_a = math.cos(angle)
-        sin_a = math.sin(angle)
-        new_x = x * cos_a - y * sin_a
-        new_y = x * sin_a + y * cos_a
-        return (new_x, new_y)
-
-    def convert_path_to_cartesian(self, path, edge_length=1):
-        return [PolyhexCandidate.axial_to_cartesian(pt, edge_length) for pt in path]
 
     def build_graph(self):
         graph = {i: set() for i in range(self.size)}
@@ -125,6 +136,15 @@ class PolyhexCandidate:
                 return False
         return True
 
+    def can_loop(self, target=6):
+        current_sum = sum(a for a in self.angles if a is not None)
+        remaining_nones = self.angles.count(None)
+        # The maximum possible sum we can get by setting all None to 1
+        max_possible_sum = current_sum + remaining_nones
+        # The minimum possible sum we can get by setting all None to -1
+        min_possible_sum = current_sum - remaining_nones
+        return min_possible_sum <= target <= max_possible_sum
+
     def is_valid_loop(self):
         start = (0, 0)
         direction = 0
@@ -168,7 +188,7 @@ class PolyhexCandidate:
             candidate_path.append(current)
         full_path = [fixed_point] + candidate_path + [fixed_point]
         valid = self.is_valid_loop()
-        cartesian_path = [PolyhexCandidate.axial_to_cartesian(pt, edge_length) for pt in full_path]
+        cartesian_path = [axial_to_cartesian(pt, edge_length) for pt in full_path]
         xs = [pt[0] for pt in cartesian_path]
         ys = [pt[1] for pt in cartesian_path]
         offset_x = (window_size[0] - (max(xs) - min(xs))) / 2 - min(xs)
@@ -317,9 +337,13 @@ class PolyhexCandidate:
         return True
 
     def backtrack_components(self, comp_index=0):
+        if not self.can_loop():
+            return
         if comp_index == len(self.components):
-            print("Valid candidate:", self.angles)
-            self.draw()
+            if self.is_valid_loop() and not self.is_self_intersecting():
+                print("Valid candidate:", self.angles)
+                self.draw()
+                wait_for_keypress();
             return
         comp = self.components[comp_index]
         if any(self.angles[i] is None for i in comp):
@@ -330,19 +354,14 @@ class PolyhexCandidate:
             for value in [1, -1]:
                 self.angles[node] = value
                 local_changes = [node]
-                if propagate_component(self, comp, local_changes):
+                if self.propagate_component(comp, local_changes):
                     self.backtrack_components(comp_index + 1)
                 for j in local_changes:
                     self.angles[j] = None
         else:
             self.backtrack_components(comp_index + 1)
 
-def wait_for_keypress():
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT or event.type == pygame.KEYDOWN:
-                running = False
+#############################################################################################
 
 if __name__ == '__main__':
     pygame.init()
@@ -353,16 +372,20 @@ if __name__ == '__main__':
 #     candidate.draw_schema()
 #     wait_for_keypress()
     MAX_SIZE = 100
+    start_time = time.time()
     print("Starting loop")
     for size in range(6, MAX_SIZE + 1, 2):
-        for idx_b_pole in range(1, size):
+        elapsed_time = time.time() - start_time
+        print(f"size={size} | Time elapsed: {elapsed_time:.2f} seconds")
+        for idx_b_pole in range(1, size//2):
             for a_offset in range(1, size):
                 for b_offset in range(1, size):
                     for a_flip in [False, True]:
                         for b_flip in [False, True]:
-                            print(f"size={size}, idx_b_pole={idx_b_pole}, a_offset={a_offset}, b_offset={b_offset}, a_flip={a_flip}, b_flip={b_flip}")
+                            # print(f"size={size}, idx_b_pole={idx_b_pole}, a_offset={a_offset}, b_offset={b_offset}, a_flip={a_flip}, b_flip={b_flip}")
                             candidate = PolyhexCandidate(size, idx_b_pole, a_offset, b_offset, a_flip, b_flip)
                             if not candidate.initSearchState():
                                 continue
-                            candidate.draw_schema()
-                            wait_for_keypress()
+                            candidate.backtrack_components()
+                            # candidate.draw_schema()
+                            # wait_for_keypress()
