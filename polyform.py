@@ -182,6 +182,34 @@ class PolyformCandidate:
         return True
 
     #---------------------------------------------------------------
+    def get_longest_non_none_block_indices(self):
+        n = self.size
+        best_start = None
+        best_length = 0
+        current_start = None
+        current_length = 0
+        # double the array virtually to handle wrap-around
+        for i in range(2 * n):
+            val = self.angles[i % n]
+            if val is not None:
+                if current_start is None:
+                    current_start = i
+                current_length += 1
+                if current_length > best_length:
+                    best_length = current_length
+                    best_start = current_start
+                if current_length == n:
+                    break
+            else:
+                current_start = None
+                current_length = 0
+        if best_start is None:
+            return (0, 0)
+        best_length = min(best_length, n)
+        return (best_start % n, best_length)
+
+    #---------------------------------------------------------------
+    # In this version the move check part consider what's complementary to the longest continuous subpart
     def can_loop(self, target=6):
         global global_min_distance
         # Turns check
@@ -194,23 +222,29 @@ class PolyformCandidate:
         if not (min_possible_sum <= target <= max_possible_sum):
             return False
         # Moves check
+        block_start, block_length = self.get_longest_non_none_block_indices()
+        if block_length == 0:
+            raise ValueError("No contiguous block of non-None angles found")
         start = (0, 0)
         direction = 0
         current = start
         total_turns = 0
-        for turn in self.angles:
-            if turn is None:
-                break
-            total_turns = total_turns + 1
+        i = block_start
+        for _ in range(block_length):
+            turn = self.angles[i]
             direction = (direction + turn) % 6
             move = axial_neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
-        remaining_items = len(self.angles) - total_turns
+            i = (i + 1) % self.size
+        remaining_items = len(self.angles) - block_length
         required_steps = axial_distance(current, start)
         if remaining_items < required_steps:  # Exact for polytri and seems good approx for polyhex
             return False
         # distance = self.size - total_turns
         if remaining_nones < global_min_distance:
+            print(self.is_self_intersecting(), self.angles)
+            self.draw()
+            wait_for_keypress()
             global_min_distance = remaining_nones  # Update global if new distance is smaller
         return True
 
@@ -349,15 +383,22 @@ class PolyformCandidate:
         pygame.display.set_caption(str(self))
         screen = pygame.display.set_mode(window_size)
         screen.fill((255, 255, 255))
+        # Instead of starting at vertex 0, start at the block defined by get_longest_non_none_block_indices
+        block_start, block_length = self.get_longest_non_none_block_indices()
         candidate_start = (0, 0)
         candidate_path = [candidate_start]
+        candidate_indices = [block_start]  # store the original index from self.angles
         direction = 0
         current = candidate_start
-        for turn in self.angles:
+        i = block_start
+        for _ in range(block_length):
+            turn = self.angles[i]
             direction = (direction + turn) % 6
             move = axial_neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
             candidate_path.append(current)
+            candidate_indices.append(i)
+            i = (i + 1) % self.size
         #fixed_point = (-1, 0)
         #full_path = [fixed_point] + candidate_path + [fixed_point]
         cartesian_path = [axial_to_cartesian(pt, edge_length) for pt in candidate_path]
@@ -371,8 +412,9 @@ class PolyformCandidate:
         self.draw_edges_helper(screen, adjusted_points, mappedA, mappedB)
         # Draw labels:
         font = pygame.font.SysFont("Consolas", 14, bold=True)
-        for idx, pos in enumerate(adjusted_points):
+        for j, pos in enumerate(adjusted_points):
             pygame.draw.circle(screen, (0, 0, 0), (int(pos[0]), int(pos[1])), 4)
+            idx = candidate_indices[j]
             if idx < len(self.angles) and self.angles[idx] is not None:
                 label = "{} ({})".format(idx, self.angles[idx])
                 text_surface = font.render(label, True, (0, 0, 0))
@@ -539,30 +581,30 @@ if __name__ == '__main__':
 
 # STATS
 # with at most one offset at 0,  critical angles at 2, count intersection 0 or 1
+# with optim can loop on longuest subpart
 # Starting loop
 # size=3 starting. 0.00s from init.
 # size=4 starting. 0.00s from init. 50.0% 1000000000
 # size=5 starting. 0.00s from init. 50.0% 1000000000
-# size=6 starting. 0.00s from init. 66.7% 2
-# size=7 starting. 0.00s from init. 66.7% 3
-# size=8 starting. 0.00s from init. 75.0% 1
-# size=9 starting. 0.01s from init. 75.0% 2
-# size=10 starting. 0.02s from init. 80.0% 1
-# size=11 starting. 0.03s from init. 80.0% 1
-# size=12 starting. 0.05s from init. 83.3% 1
-# size=13 starting. 0.09s from init. 83.3% 1
-# size=14 starting. 0.14s from init. 85.7% 1
-# size=15 starting. 0.27s from init. 85.7% 1
-# size=16 starting. 0.47s from init. 87.5% 1
-# size=17 starting. 1.00s from init. 87.5% 1
-# size=18 starting. 1.85s from init. 88.9% 1
-# size=19 starting. 4.17s from init. 88.9% 1
-# size=20 starting. 8.15s from init. 90.0% 1
-# size=21 starting. 19.15s from init. 90.0% 1
-# size=22 starting. 37.72s from init. 90.9% 1
-# size=23 starting. 88.91s from init. 90.9% 1
-# size=24 starting. 177.21s from init. 91.7% 1
-# size=25 starting. 415.76s from init. 91.7% 1
+# size=6 starting. 0.00s from init. 33.3% 1000000000
+# size=7 starting. 0.00s from init. 33.3% 3
+# size=8 starting. 0.01s from init. 25.0% 1
+# size=9 starting. 0.01s from init. 25.0% 2
+# size=10 starting. 0.02s from init. 20.0% 1
+# size=11 starting. 0.03s from init. 20.0% 2
+# size=12 starting. 0.05s from init. 16.7% 1
+# size=13 starting. 0.09s from init. 16.7% 1
+# size=14 starting. 0.14s from init. 14.3% 1
+# size=15 starting. 0.25s from init. 14.3% 1
+# size=16 starting. 0.43s from init. 12.5% 1
+# size=17 starting. 0.78s from init. 12.5% 1
+# size=18 starting. 1.43s from init. 11.1% 1
+# size=19 starting. 2.80s from init. 11.1% 1
+# size=20 starting. 5.41s from init. 10.0% 1
+# size=21 starting. 11.16s from init. 10.0% 1
+# size=22 starting. 21.88s from init. 9.1% 1
+# size=23 starting. 45.86s from init. 9.1% 1
+# size=24 starting. 91.31s from init. 8.3% 1
 # with at least one offset at 0
 # pygame-ce 2.5.3 (SDL 2.30.12, Python 3.12.5)
 # Starting loop
