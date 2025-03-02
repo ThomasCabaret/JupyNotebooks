@@ -110,17 +110,17 @@ class PolyformCandidate:
     def build_graph(self):
         graph = {i: set() for i in range(self.size)}
         # Mapping A (same as in draw_schema)
-#         start_a, end_a = 0, self.idx_b_pole  # Start and end of section A
-#         start_a_proj = (start_a + self.a_offset) % self.size if not self.a_flip else (end_a + self.a_offset) % self.size
-#         end_a_proj = (end_a + self.a_offset) % self.size if not self.a_flip else (start_a + self.a_offset) % self.size
-#         for i in range(1, self.idx_b_pole): # We do not connect bondaries to their projection
-#             if self.a_flip:
-#                 j = (start_a_proj - i) % self.size
-#             else:
-#                 j = (start_a_proj + i) % self.size
-#             graph[start_a + i].add(j)
-#             if not start_a + i == j: # no reverse if on itself
-#                 graph[j].add(start_a + i)
+        start_a, end_a = 0, self.idx_b_pole  # Start and end of section A
+        start_a_proj = (start_a + self.a_offset) % self.size if not self.a_flip else (end_a + self.a_offset) % self.size
+        end_a_proj = (end_a + self.a_offset) % self.size if not self.a_flip else (start_a + self.a_offset) % self.size
+        for i in range(1, self.idx_b_pole): # We do not connect bondaries to their projection
+            if self.a_flip:
+                j = (start_a_proj - i) % self.size
+            else:
+                j = (start_a_proj + i) % self.size
+            graph[start_a + i].add(j)
+            if not start_a + i == j: # no reverse if on itself
+                graph[j].add(start_a + i)
         # Mapping B (same logic)
         start_b, end_b = self.idx_b_pole, 0  # Start and end of section B
         start_b_proj = (start_b + self.b_offset) % self.size if not self.b_flip else (end_b + self.b_offset) % self.size
@@ -160,7 +160,7 @@ class PolyformCandidate:
         while queue:
             v = queue.popleft()
             for u in self.graph[v]:
-                if u not in comp:
+                if u not in comp: # useless if no bug
                     continue
                 expected = -self.angles[v]
                 if self.angles[u] is None:
@@ -187,7 +187,9 @@ class PolyformCandidate:
         # Turns check
         current_sum = sum(a for a in self.angles if a is not None)
         remaining_nones = self.angles.count(None)
+        # The maximum possible sum we can get by setting all None to 1
         max_possible_sum = current_sum + remaining_nones
+        # The minimum possible sum we can get by setting all None to -1
         min_possible_sum = current_sum - remaining_nones
         if not (min_possible_sum <= target <= max_possible_sum):
             return False
@@ -203,8 +205,9 @@ class PolyformCandidate:
             direction = (direction + turn) % 6
             move = axial_neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
+        remaining_items = len(self.angles) - total_turns
         required_steps = axial_distance(current, start)
-        if remaining_nones < required_steps: # Exact for polytri and seems good approx for polyhex
+        if remaining_items < required_steps:  # Exact for polytri and seems good approx for polyhex
             return False
         # distance = self.size - total_turns
         if remaining_nones < global_min_distance:
@@ -439,7 +442,6 @@ class PolyformCandidate:
 
     #---------------------------------------------------------------
     def backtrack_components(self, comp_index=0):
-        print("testing candidate:", self.angles)
         if self.is_self_intersecting() or not self.can_loop():
             return
         if comp_index == len(self.components):
@@ -469,11 +471,11 @@ class PolyformCandidate:
 if __name__ == '__main__':
     pygame.init()
     # TEST
-    testCandidate = PolyformCandidate(PolyformType.POLYTRI, 9, 5, 0, 0, False, True)
-    if testCandidate.initSearchState():
-        testCandidate.backtrack_components()
-    print("End TEST")
-    wait_for_keypress()
+#     testCandidate = PolyformCandidate(PolyformType.POLYTRI, 9, 5, 0, 0, False, True)
+#     if testCandidate.initSearchState():
+#         testCandidate.backtrack_components()
+#     print("End TEST")
+#     wait_for_keypress()
     START_SIZE = 3  # Min for polyhex would be 6
     MAX_SIZE = 10000
     start_time = time.time()
@@ -490,7 +492,9 @@ if __name__ == '__main__':
             sys.stdout.flush()
             for a_offset in range(0, size):
                 for b_offset in range(0, size):
-                    #if not (a_offset == 0 or b_offset == 0):
+                    if a_offset == 0 and b_offset == 0:   # FILTER --------
+                        continue
+                    #if not (a_offset == 0 or b_offset == 0):  # FILTER --------
                     #    continue
                     for a_flip in [False, True]:
                         for b_flip in [False, True]:
