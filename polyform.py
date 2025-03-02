@@ -3,6 +3,7 @@ import math
 import time
 import pygame
 import itertools
+from enum import Enum
 from collections import deque
 
 # Interaction helpers
@@ -13,6 +14,9 @@ def wait_for_keypress():
         for event in pygame.event.get():
             if event.type == pygame.QUIT or event.type == pygame.KEYDOWN:
                 running = False
+
+#---------------------------------------------------------------
+global_min_distance = 10**9
 
 # Maths helpers
 #---------------------------------------------------------------
@@ -28,16 +32,29 @@ def axial_to_cartesian(coord, edge_length=1):
     return (new_x, new_y)
 
 #---------------------------------------------------------------
-def hex_distance(axial1, axial2):
+# Either distance vertex to vertex in a triangular grid, or cell to cell in an hex grid
+def axial_distance(axial1, axial2):
     q1, r1 = axial1
     q2, r2 = axial2
     return (abs(q1 - q2) + abs(r1 - r2) + abs((q1 + r1) - (q2 + r2))) // 2
+
+#---------------------------------------------------------------
+# Neighbor directions for hex grid (axial coordinates)
+axial_neighbors = [
+    (1, 0),    # 0: east
+    (0, 1),    # 1: southeast
+    (-1, 1),   # 2: southwest
+    (-1, 0),   # 3: west
+    (0, -1),   # 4: northwest
+    (1, -1)    # 5: northeast
+]
 
 #---------------------------------------------------------------
 def convert_path_to_cartesian(path, edge_length=1):
     return [axial_to_cartesian(pt, edge_length) for pt in path]
 
 # Draw helpers
+#---------------------------------------------------------------
 def draw_multicolor_segment(surface, start, end, colors, width=1):
     dx = end[0] - start[0]
     dy = end[1] - start[1]
@@ -55,11 +72,15 @@ def draw_multicolor_segment(surface, start, end, colors, width=1):
         end_off = (end[0] + ux * off, end[1] + uy * off)
         pygame.draw.line(surface, color, start_off, end_off, width)
 
-global_min_distance = 10**9
-
 #############################################################################################
-class PolyhexCandidate:
-    def __init__(self, size, idx_b_pole, a_offset, b_offset, a_flip, b_flip):
+
+class PolyformType(Enum):
+    POLYHEX = "POLYHEX"
+    POLYTRI = "POLYTRI"
+    POLYSQR = "POLYSQR"
+
+class PolyformCandidate:
+    def __init__(self, polyform_type: PolyformType, size, idx_b_pole, a_offset, b_offset, a_flip, b_flip):
         self.size = size
         self.angles = [None] * size
         self.idx_b_pole = idx_b_pole
@@ -67,23 +88,14 @@ class PolyhexCandidate:
         self.b_offset = b_offset
         self.a_flip = a_flip
         self.b_flip = b_flip
+        self.polyform_type = polyform_type
         # rest done in initSearchState (cannot be called here as it can fail)
 
     #---------------------------------------------------------------
     def __str__(self):
-        return (f"PolyhexCandidate(size={self.size}, idx_b_pole={self.idx_b_pole}, "
+        return (f"PolyformCandidate(size={self.size}, idx_b_pole={self.idx_b_pole}, "
                 f"a_offset={self.a_offset}, b_offset={self.b_offset}, "
                 f"a_flip={self.a_flip}, b_flip={self.b_flip}, angles={self.angles})")
-
-    # Neighbor directions for hex grid (axial coordinates)
-    _neighbors = [
-        (1, 0),    # 0: east
-        (0, 1),    # 1: southeast
-        (-1, 1),   # 2: southwest
-        (-1, 0),   # 3: west
-        (0, -1),   # 4: northwest
-        (1, -1)    # 5: northeast
-    ]
 
     #---------------------------------------------------------------
     def print_graph(self):
@@ -187,15 +199,23 @@ class PolyhexCandidate:
                 break
             total_turns = total_turns + 1
             direction = (direction + turn) % 6
-            move = PolyhexCandidate._neighbors[direction]
+            move = axial_neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
-        required_steps = hex_distance(current, start)
-        if remaining_nones < required_steps:
+        required_steps = axial_distance(current, start)
+        if remaining_nones < required_steps: # Exact for polytri and seems good approx for polyhex
             return False
         # distance = self.size - total_turns
         if remaining_nones < global_min_distance:
             global_min_distance = remaining_nones  # Update global if new distance is smaller
         return True
+
+    #---------------------------------------------------------------
+    def valid_turns(self):
+        if self.polyform_type == PolyformType.POLYHEX:
+            return {1, -1}
+        elif self.polyform_type == PolyformType.POLYTRI:
+            return {2, 1, -1, -2}
+        raise ValueError(f"Unknown polyform type: {self.polyform_type}")
 
     #---------------------------------------------------------------
     def is_valid_loop(self):
@@ -204,14 +224,12 @@ class PolyhexCandidate:
         direction = 0
         current = start
         for turn in self.angles:
-            if turn not in (1, -1):
-                raise ValueError("Turn values must be 1 or -1.")
             direction = (direction + turn) % 6
-            move = PolyhexCandidate._neighbors[direction]
+            move = axial_neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
-        distance = abs(current[0] - start[0]) + abs(current[1] - start[1])
-        if distance < global_min_distance:
-            global_min_distance = distance  # Update global if new distance is smaller
+        #distance = abs(current[0] - start[0]) + abs(current[1] - start[1])
+        #if distance < global_min_distance:
+        #    global_min_distance = distance  # Update global if new distance is smaller
         return (current == (0, 0)) and (direction == 0)
 
     #---------------------------------------------------------------
@@ -224,7 +242,7 @@ class PolyhexCandidate:
 #             if turn is None:
 #                 return False
 #             direction = (direction + turn) % 6
-#             move = PolyhexCandidate._neighbors[direction]
+#             move = axial_neighbors[direction]
 #             current = (current[0] + move[0], current[1] + move[1])
 #             if i < len(self.angles) - 1:
 #                 if current in visited:
@@ -253,7 +271,7 @@ class PolyhexCandidate:
             while i < n and self.angles[i] is not None:
                 turn = self.angles[i]
                 direction = (direction + turn) % 6
-                move = PolyhexCandidate._neighbors[direction]
+                move = axial_neighbors[direction]
                 current = (current[0] + move[0], current[1] + move[1])
                 if current in visited:
                     if not (allowed_return and current == block_start and i == n-1):
@@ -263,7 +281,7 @@ class PolyhexCandidate:
             first_block = False
         return False
 
-    # Helper methods added to PolyhexCandidate
+    # Helper methods added to PolyformCandidate
     #---------------------------------------------------------------
     def compute_mapping_range(self, count, offset, flip, base_nonflip, base_flip):
         mapping = []
@@ -289,7 +307,7 @@ class PolyhexCandidate:
             mappingB_color = (0, 0, 255) if (i in mappedB and next_i in mappedB) else None
             draw_multicolor_segment(screen, points[i], points[next_i],
                                     colors=[base_color, mappingA_color, mappingB_color],
-                                    width=6)
+                                    width=3)
 
     #---------------------------------------------------------------
     def draw(self, edge_length=40, window_size=(800, 600)):
@@ -300,9 +318,9 @@ class PolyhexCandidate:
         candidate_path = [candidate_start]
         direction = 0
         current = candidate_start
-        for turn in self.angles[:-1]:
+        for turn in self.angles:
             direction = (direction + turn) % 6
-            move = PolyhexCandidate._neighbors[direction]
+            move = axial_neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
             candidate_path.append(current)
         #fixed_point = (-1, 0)
@@ -390,12 +408,12 @@ class PolyhexCandidate:
         # Ensure all angles start as None
         self.angles = [None] * self.size
         # Set initial fixed angles
-        self.angles[0] = 1
-        self.angles[self.idx_b_pole % self.size] = 1
-        self.angles[self.a_offset % self.size] = 1
-        self.angles[(self.idx_b_pole + self.a_offset) % self.size] = 1
-        self.angles[self.b_offset % self.size] = 1
-        self.angles[(self.idx_b_pole + self.b_offset) % self.size] = 1
+        self.angles[0] = 2   # TODO ###############################################"
+        self.angles[self.idx_b_pole % self.size] = 2
+        self.angles[self.a_offset % self.size] = 2
+        self.angles[(self.idx_b_pole + self.a_offset) % self.size] = 2
+        self.angles[self.b_offset % self.size] = 2
+        self.angles[(self.idx_b_pole + self.b_offset) % self.size] = 2
         if not self.propagate_fixed():
             return False
         for comp in self.components:
@@ -433,7 +451,7 @@ class PolyhexCandidate:
                 if self.angles[i] is None:
                     node = i
                     break
-            for value in [1, -1]:
+            for value in self.valid_turns():
                 self.angles[node] = value
                 local_changes = [node]
                 if self.propagate_component(comp, local_changes):
@@ -447,17 +465,11 @@ class PolyhexCandidate:
 
 if __name__ == '__main__':
     pygame.init()
-#     print("Pygame initialized")
-#     candidate = PolyhexCandidate(20, 8, 13, 13, False, False)
-#     initStatus = candidate.initSearchState()
-#     print("Initialization Status:", initStatus)
-#     candidate.draw_schema()
-#     wait_for_keypress()
-    START_SIZE = 6
+    START_SIZE = 3  # Min for polyhex would be 6
     MAX_SIZE = 10000
     start_time = time.time()
     print("Starting loop")
-    for size in range(START_SIZE, MAX_SIZE + 1, 2):
+    for size in range(START_SIZE, MAX_SIZE + 1, 1): # For polyhex 2 by 2 is possible
         elapsed_time = time.time() - start_time
         header = f"size={size} starting. {elapsed_time:.2f}s from init. "
         print(header, end="", flush=True)
@@ -473,8 +485,8 @@ if __name__ == '__main__':
                     #    continue
                     for a_flip in [False, True]:
                         for b_flip in [False, True]:
-                            # print(f"size={size}, idx_b_pole={idx_b_pole}, a_offset={a_offset}, b_offset={b_offset}, a_flip={a_flip}, b_flip={b_flip}")
-                            candidate = PolyhexCandidate(size, idx_b_pole, a_offset, b_offset, a_flip, b_flip)
+                            #print(f"size={size}, idx_b_pole={idx_b_pole}, a_offset={a_offset}, b_offset={b_offset}, a_flip={a_flip}, b_flip={b_flip}")
+                            candidate = PolyformCandidate(PolyformType.POLYTRI, size, idx_b_pole, a_offset, b_offset, a_flip, b_flip)
                             if not candidate.initSearchState():
                                 continue
                             candidate.backtrack_components()
@@ -484,7 +496,6 @@ if __name__ == '__main__':
 
 # STATS
 # with at least one offset at 0
-PS C:\CodeProjects\jupy\JupyNotebooks> py .\polyhex.py
 # pygame-ce 2.5.3 (SDL 2.30.12, Python 3.12.5)
 # Starting loop
 # size=6 starting. 0.00s from init. 66.7% 4
