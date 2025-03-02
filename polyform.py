@@ -293,11 +293,15 @@ class PolyformCandidate:
 #         return False
 
     #---------------------------------------------------------------
+    #  CURRENTLY BUGGED TODO
     def is_self_intersecting(self):
         n = self.size
         i = 0
+        if any(angle is None for angle in self.angles):
+            while self.angles[(i - 1) % n] is not None:
+                i = (i - 1) % n
         first_block = True
-        while i < n:
+        for _ in range(n):
             while i < n and self.angles[i] is None:
                 i += 1
             if i >= n:
@@ -313,7 +317,7 @@ class PolyformCandidate:
                 move = axial_neighbors[direction]
                 current = (current[0] + move[0], current[1] + move[1])
                 if current in visited:
-                    if not (allowed_return and current == block_start and i == n-1):
+                    if not (allowed_return and current == block_start and i == n-1): # Check it's correctly triggered
                         return True
                 visited.add(current)
                 i += 1
@@ -385,24 +389,24 @@ class PolyformCandidate:
         screen.fill((255, 255, 255))
         # Instead of starting at vertex 0, start at the block defined by get_longest_non_none_block_indices
         block_start, block_length = self.get_longest_non_none_block_indices()
+        #fixed_point = (-1, 0)
         candidate_start = (0, 0)
         candidate_path = [candidate_start]
         candidate_indices = [block_start]  # store the original index from self.angles
+        #print("INIT", candidate_path, candidate_indices)
         direction = 0
         current = candidate_start
-        i = block_start
-        i = (i + 1) % self.size    ##### THIS LINE
-        for _ in range(block_length):
+        i = (block_start + 1) % self.size
+        for _ in range(block_length-1):   # probably a cleaner way to write that
             turn = self.angles[i]
             direction = (direction + turn) % 6
             move = axial_neighbors[direction]
             current = (current[0] + move[0], current[1] + move[1])
             candidate_path.append(current)
             candidate_indices.append(i)
+            #print("INCR", candidate_path, candidate_indices)
             i = (i + 1) % self.size
-        #fixed_point = (-1, 0)
-        #full_path = [fixed_point] + candidate_path + [fixed_point]
-        print(candidate_path)
+        #print(candidate_path)
         cartesian_path = [axial_to_cartesian(pt, edge_length) for pt in candidate_path]
         xs = [pt[0] for pt in cartesian_path]
         ys = [pt[1] for pt in cartesian_path]
@@ -416,7 +420,8 @@ class PolyformCandidate:
         font = pygame.font.SysFont("Consolas", 14, bold=True)
         for j, pos in enumerate(adjusted_points):
             pygame.draw.circle(screen, (0, 0, 0), (int(pos[0]), int(pos[1])), 4)
-            idx = (candidate_indices[j]) % self.size  # I do not get why +1 is needed here but it is
+            idx = (candidate_indices[j] + 1) % self.size  # I do not get why +1 is needed here but it is
+            #print(j, idx, candidate_indices)
             if idx < len(self.angles) and self.angles[idx] is not None:
                 label = "{} ({})".format(idx, self.angles[idx])
                 text_surface = font.render(label, True, (0, 0, 0))
