@@ -391,6 +391,7 @@ class PolyformCandidate:
         direction = 0
         current = candidate_start
         i = block_start
+        i = (i + 1) % self.size    ##### THIS LINE
         for _ in range(block_length):
             turn = self.angles[i]
             direction = (direction + turn) % 6
@@ -401,6 +402,7 @@ class PolyformCandidate:
             i = (i + 1) % self.size
         #fixed_point = (-1, 0)
         #full_path = [fixed_point] + candidate_path + [fixed_point]
+        print(candidate_path)
         cartesian_path = [axial_to_cartesian(pt, edge_length) for pt in candidate_path]
         xs = [pt[0] for pt in cartesian_path]
         ys = [pt[1] for pt in cartesian_path]
@@ -414,7 +416,7 @@ class PolyformCandidate:
         font = pygame.font.SysFont("Consolas", 14, bold=True)
         for j, pos in enumerate(adjusted_points):
             pygame.draw.circle(screen, (0, 0, 0), (int(pos[0]), int(pos[1])), 4)
-            idx = candidate_indices[j]
+            idx = (candidate_indices[j]) % self.size  # I do not get why +1 is needed here but it is
             if idx < len(self.angles) and self.angles[idx] is not None:
                 label = "{} ({})".format(idx, self.angles[idx])
                 text_surface = font.render(label, True, (0, 0, 0))
