@@ -286,6 +286,36 @@ class PolyformCandidate:
             first_block = False
         return False
 
+    #---------------------------------------------------------------
+    # for testing and debug
+    def count_self_intersections(self):
+        n = self.size
+        i = 0
+        first_block = True
+        intersection_count = 0
+        while i < n:
+            while i < n and self.angles[i] is None:
+                i += 1
+            if i >= n:
+                break
+            block_start = (0, 0)
+            visited = {block_start}
+            direction = 0
+            current = block_start
+            allowed_return = first_block
+            while i < n and self.angles[i] is not None:
+                turn = self.angles[i]
+                direction = (direction + turn) % 6
+                move = axial_neighbors[direction]
+                current = (current[0] + move[0], current[1] + move[1])
+                if current in visited:
+                    if not (allowed_return and current == block_start and i == n-1):
+                        intersection_count += 1
+                visited.add(current)
+                i += 1
+            first_block = False
+        return intersection_count
+
     # Helper methods added to PolyformCandidate
     #---------------------------------------------------------------
     def compute_mapping_range(self, count, offset, flip, base_nonflip, base_flip):
@@ -308,8 +338,8 @@ class PolyformCandidate:
         for i in range(len(points) - 1):
             next_i = i + 1
             base_color = (255, 0, 0) if (1 <= next_i <= self.idx_b_pole) else (0, 0, 255)
-            mappingA_color = (255, 0, 0) if (i in mappedA and next_i in mappedA) else None
-            mappingB_color = (0, 0, 255) if (i in mappedB and next_i in mappedB) else None
+            mappingA_color = (255, 20, 147) if (i in mappedA and next_i in mappedA) else None
+            mappingB_color = (0, 200, 255) if (i in mappedB and next_i in mappedB) else None
             draw_multicolor_segment(screen, points[i], points[next_i],
                                     colors=[base_color, mappingA_color, mappingB_color],
                                     width=3)
@@ -486,7 +516,7 @@ if __name__ == '__main__':
         print(header, end="", flush=True)
         global_min_distance = 10**9
         total = size // 2
-        for idx_b_pole in range(1, total):
+        for idx_b_pole in range(total - 1, 0, -1): # Starting by ballanced split
             percentage = (idx_b_pole / total) * 100
             sys.stdout.write(f"\r{header}{percentage:.1f}% {global_min_distance}             ")
             sys.stdout.flush()
@@ -508,6 +538,31 @@ if __name__ == '__main__':
         print("")
 
 # STATS
+# with at most one offset at 0,  critical angles at 2, count intersection 0 or 1
+# Starting loop
+# size=3 starting. 0.00s from init.
+# size=4 starting. 0.00s from init. 50.0% 1000000000
+# size=5 starting. 0.00s from init. 50.0% 1000000000
+# size=6 starting. 0.00s from init. 66.7% 2
+# size=7 starting. 0.00s from init. 66.7% 3
+# size=8 starting. 0.00s from init. 75.0% 1
+# size=9 starting. 0.01s from init. 75.0% 2
+# size=10 starting. 0.02s from init. 80.0% 1
+# size=11 starting. 0.03s from init. 80.0% 1
+# size=12 starting. 0.05s from init. 83.3% 1
+# size=13 starting. 0.09s from init. 83.3% 1
+# size=14 starting. 0.14s from init. 85.7% 1
+# size=15 starting. 0.27s from init. 85.7% 1
+# size=16 starting. 0.47s from init. 87.5% 1
+# size=17 starting. 1.00s from init. 87.5% 1
+# size=18 starting. 1.85s from init. 88.9% 1
+# size=19 starting. 4.17s from init. 88.9% 1
+# size=20 starting. 8.15s from init. 90.0% 1
+# size=21 starting. 19.15s from init. 90.0% 1
+# size=22 starting. 37.72s from init. 90.9% 1
+# size=23 starting. 88.91s from init. 90.9% 1
+# size=24 starting. 177.21s from init. 91.7% 1
+# size=25 starting. 415.76s from init. 91.7% 1
 # with at least one offset at 0
 # pygame-ce 2.5.3 (SDL 2.30.12, Python 3.12.5)
 # Starting loop
