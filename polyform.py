@@ -242,9 +242,8 @@ class PolyformCandidate:
             return False
         # distance = self.size - total_turns
         if remaining_nones < global_min_distance:
-            print(self.is_self_intersecting(), self.angles)
-            self.draw()
-            wait_for_keypress()
+            #self.draw()
+            #wait_for_keypress()
             global_min_distance = remaining_nones  # Update global if new distance is smaller
         return True
 
@@ -293,35 +292,36 @@ class PolyformCandidate:
 #         return False
 
     #---------------------------------------------------------------
-    #  CURRENTLY BUGGED TODO
+    def is_component_self_intersecting(self, start_index):
+        n = self.size
+        visited = {(0, 0)}
+        direction = 0
+        current = (0, 0)
+        i = start_index
+        steps = 0  # Safety counter to ensure we don't loop indefinitely
+        while self.angles[i] is not None and steps < n-1: # we do not consider the last when called on the whole loop
+            turn = self.angles[i]
+            direction = (direction + turn) % 6
+            move = axial_neighbors[direction]
+            current = (current[0] + move[0], current[1] + move[1])
+            if current in visited:
+                return True
+            visited.add(current)
+            i = (i + 1) % n  # Move to the next index in a circular manner
+            steps += 1  # Increment safety counter
+        return False
+
+    #---------------------------------------------------------------
     def is_self_intersecting(self):
         n = self.size
-        i = 0
-        if any(angle is None for angle in self.angles):
-            while self.angles[(i - 1) % n] is not None:
-                i = (i - 1) % n
-        first_block = True
-        for _ in range(n):
-            while i < n and self.angles[i] is None:
-                i += 1
-            if i >= n:
-                break
-            block_start = (0, 0)
-            visited = {block_start}
-            direction = 0
-            current = block_start
-            allowed_return = first_block
-            while i < n and self.angles[i] is not None:
-                turn = self.angles[i]
-                direction = (direction + turn) % 6
-                move = axial_neighbors[direction]
-                current = (current[0] + move[0], current[1] + move[1])
-                if current in visited:
-                    if not (allowed_return and current == block_start and i == n-1): # Check it's correctly triggered
-                        return True
-                visited.add(current)
-                i += 1
-            first_block = False
+        has_none = any(angle is None for angle in self.angles)
+        if not has_none:
+            return self.is_component_self_intersecting(0)
+        for i in range(n):
+            prev_index = (i - 1) % n  # Correctly handle previous index in a circular way
+            if self.angles[i] is not None and self.angles[prev_index] is None:
+                if self.is_component_self_intersecting(i):
+                    return True
         return False
 
     #---------------------------------------------------------------
