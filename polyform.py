@@ -93,6 +93,7 @@ class PolyformCandidate:
     def __init__(self, polyform_type: PolyformType, size, idx_b_pole, a_offset, b_offset, a_flip, b_flip):
         self.size = size
         self.angles = [None] * size
+        self.components_angles = [0] * size
         self.idx_b_pole = idx_b_pole
         self.a_offset = a_offset
         self.b_offset = b_offset
@@ -154,7 +155,7 @@ class PolyformCandidate:
         return graph
 
     #---------------------------------------------------------------
-    def get_components(self):
+    def build_components(self):
         visited = [False] * self.size
         components = []
         for i in range(self.size):
@@ -171,6 +172,59 @@ class PolyformCandidate:
                             stack.append(neighbor)
                 components.append(comp)
         return components
+
+    #---------------------------------------------------------------
+    def sort_components(self):
+        if not self.components:
+            return
+        # Work on a copy of the components
+        unsorted = self.components[:]
+        sorted_components = []
+        # Choose the first component: largest size, tie-breaker by smallest minimum element.
+        first = max(unsorted, key=lambda comp: (len(comp), -min(comp)))
+        sorted_components.append(first)
+        unsorted.remove(first)
+        # Create a set of all elements in the sorted components.
+        sorted_set = set(first)
+        # Define a function to count the number of "touches" for a component.
+        def touch_count(comp):
+            count = 0
+            for x in comp:
+                if (((x - 1) % self.size) in sorted_set) or (((x + 1) % self.size) in sorted_set):
+                    count += 1
+            return count
+        # Process remaining components.
+        while unsorted:
+            # Select the component with the highest touch count.
+            # In case of a tie, choose the one with the smallest minimum element.
+            next_comp = max(unsorted, key=lambda comp: (touch_count(comp), -min(comp)))
+            sorted_components.append(next_comp)
+            unsorted.remove(next_comp)
+            # Update the set of elements with the new component.
+            sorted_set.update(next_comp)
+        # Update self.components with the sorted list.
+        self.components = sorted_components
+
+    #---------------------------------------------------------------
+    def compute_components_angles(self):
+        components_angles = []
+        for comp in self.components:
+            # Record indices that were None and changed by this method
+            changes = []
+            # If the component is completely unset, assign the first element the value 2.
+            if all(self.angles[i] is None for i in comp):
+                self.angles[comp[0]] = 2
+                changes.append(comp[0])
+            # Propagate the alternating values in the component.
+            # This will fill in all None entries according to the rule: neighbor gets -value.
+            self.propagate_component(comp, changes)
+            # Compute the sum for the component (ignoring indices that are still None).
+            comp_sum = sum(self.angles[i] for i in comp if self.angles[i] is not None)
+            components_angles.append(comp_sum)
+            # Rollback only the changes we made (restore None for indices that were originally unset)
+            for idx in changes:
+                self.angles[idx] = None
+        self.components_angles = components_angles
 
     #---------------------------------------------------------------
     def propagate_component(self, comp, changes):
@@ -227,8 +281,14 @@ class PolyformCandidate:
         current_sum = sum(a for a in self.angles if a is not None)
         remaining_nones = self.angles.count(None)
         # The max min possible sum we can get by setting all None to 1 or -1 # TODO optim: take into account component constraints
-        max_possible_sum = current_sum + remaining_nones
-        min_possible_sum = current_sum - remaining_nones
+        #max_possible_sum = current_sum + 2*remaining_nones  # The max angle is 2...
+        #min_possible_sum = current_sum - 2*remaining_nones
+        remaining_max_abs_angle = 0
+        for comp, comp_angle in zip(self.components, self.components_angles):
+            if self.angles[comp[0]] is None:
+                remaining_max_abs_angle += comp_angle
+        max_possible_sum = current_sum + remaining_max_abs_angle
+        min_possible_sum = current_sum - remaining_max_abs_angle
         if not (min_possible_sum <= target <= max_possible_sum):
             return False
         # Moves check
@@ -495,7 +555,13 @@ class PolyformCandidate:
     def initSearchState(self):
         # Build graph and deduce its connected subgraphs
         self.graph = self.build_graph()
-        self.components = self.get_components()
+        self.components = self.build_components()
+        # Another tentative heuristic
+        self.compute_components_angles()
+        # Heuristic to be tested and tuned
+        # CANNOT USE SORT WITH COMPONENT ANGLES OPTIM
+        # self.sort_components()
+        # self.components.sort(key=lambda comp: (-len(comp), min(comp)))
         # Ensure all angles start as None
         self.angles = [None] * self.size
         # Set initial fixed angles
@@ -595,36 +661,96 @@ if __name__ == '__main__':
 
 # STATS
 # with at most one offset at 0,  critical angles at 2, count intersection 0 or 1
-# with latest optims
+# can loop angle optim
+# Starting loop
+# size=3 starting. 0.00s from init.
+# size=4 starting. 0.00s from init. 50.0% 1000000000
+# size=5 starting. 0.00s from init. 50.0% 1000000000
+# size=6 starting. 0.00s from init. 33.3% 1000000000
+# size=7 starting. 0.01s from init. 33.3% 3
+# size=8 starting. 0.01s from init. 25.0% 4
+# size=9 starting. 0.02s from init. 25.0% 3
+# size=10 starting. 0.03s from init. 20.0% 3
+# size=11 starting. 0.05s from init. 20.0% 3
+# size=12 starting. 0.07s from init. 16.7% 3
+# size=13 starting. 0.12s from init. 16.7% 2
+# size=14 starting. 0.17s from init. 14.3% 3
+# size=15 starting. 0.24s from init. 14.3% 3
+# size=16 starting. 0.34s from init. 12.5% 2
+# size=17 starting. 0.47s from init. 12.5% 2
+# size=18 starting. 0.63s from init. 11.1% 2
+# size=19 starting. 0.86s from init. 11.1% 1
+# size=20 starting. 1.14s from init. 10.0% 2
+# size=21 starting. 1.56s from init. 10.0% 2
+# size=22 starting. 2.06s from init. 9.1% 1
+# size=23 starting. 2.79s from init. 9.1% 2
+# size=24 starting. 3.85s from init. 8.3% 2
+# size=25 starting. 5.29s from init. 8.3% 1
+# size=26 starting. 7.38s from init. 7.7% 1
+# size=27 starting. 11.05s from init. 7.7% 2
+# size=28 starting. 15.96s from init. 7.1% 1
+# size=29 starting. 23.84s from init. 7.1% 1
+# size=30 starting. 38.61s from init. 66.7% 2
+# removed bug from canloop 2*
+# Starting loop
+# size=3 starting. 0.00s from init.
+# size=4 starting. 0.00s from init. 50.0% 1000000000
+# size=5 starting. 0.00s from init. 50.0% 1000000000
+# size=6 starting. 0.00s from init. 33.3% 1000000000
+# size=7 starting. 0.01s from init. 33.3% 3
+# size=8 starting. 0.01s from init. 25.0% 4
+# size=9 starting. 0.02s from init. 25.0% 3
+# size=10 starting. 0.03s from init. 20.0% 2
+# size=11 starting. 0.05s from init. 20.0% 3
+# size=12 starting. 0.07s from init. 16.7% 3
+# size=13 starting. 0.12s from init. 16.7% 2
+# size=14 starting. 0.17s from init. 14.3% 2
+# size=15 starting. 0.24s from init. 14.3% 2
+# size=16 starting. 0.35s from init. 12.5% 2
+# size=17 starting. 0.49s from init. 12.5% 2
+# size=18 starting. 0.67s from init. 11.1% 2
+# size=19 starting. 0.92s from init. 11.1% 1
+# size=20 starting. 1.24s from init. 10.0% 2
+# size=21 starting. 1.75s from init. 10.0% 2
+# size=22 starting. 2.41s from init. 9.1% 1
+# size=23 starting. 3.48s from init. 9.1% 2
+# size=24 starting. 5.01s from init. 8.3% 2
+# size=25 starting. 7.77s from init. 8.3% 1
+# size=26 starting. 11.58s from init. 7.7% 1
+# size=27 starting. 19.69s from init. 7.7% 2
+# size=28 starting. 30.88s from init. 7.1% 1
+# size=29 starting. 55.90s from init. 7.1% 1
+# size=30 starting. 92.12s from init. 73.3% 2
+# with latest optims + component order that seems to be a little worst
 # Starting loop
 # size=3 starting. 0.00s from init.
 # size=4 starting. 0.00s from init. 50.0% 1000000000
 # size=5 starting. 0.00s from init. 50.0% 1000000000
 # size=6 starting. 0.00s from init. 33.3% 1000000000
 # size=7 starting. 0.00s from init. 33.3% 3
-# size=8 starting. 0.00s from init. 25.0% 3
+# size=8 starting. 0.00s from init. 25.0% 4
 # size=9 starting. 0.01s from init. 25.0% 3
 # size=10 starting. 0.02s from init. 20.0% 2
-# size=11 starting. 0.03s from init. 20.0% 2
-# size=12 starting. 0.04s from init. 16.7% 2
-# size=13 starting. 0.06s from init. 16.7% 2
-# size=14 starting. 0.09s from init. 14.3% 2
-# size=15 starting. 0.14s from init. 14.3% 2
-# size=16 starting. 0.20s from init. 12.5% 2
-# size=17 starting. 0.28s from init. 12.5% 2
-# size=18 starting. 0.40s from init. 11.1% 2
-# size=19 starting. 0.58s from init. 11.1% 2
-# size=20 starting. 0.84s from init. 10.0% 2
-# size=21 starting. 1.27s from init. 10.0% 2
-# size=22 starting. 1.89s from init. 9.1% 2
-# size=23 starting. 2.97s from init. 9.1% 2
-# size=24 starting. 4.71s from init. 8.3% 2
-# size=25 starting. 7.66s from init. 8.3% 2
-# size=26 starting. 12.75s from init. 7.7% 2
-# size=27 starting. 22.19s from init. 7.7% 2
-# size=28 starting. 37.55s from init. 7.1% 2
-# size=29 starting. 68.14s from init. 7.1% 2
-# size=30 starting. 120.63s from init. 60.0% 2
+# size=11 starting. 0.03s from init. 20.0% 3
+# size=12 starting. 0.05s from init. 16.7% 3
+# size=13 starting. 0.07s from init. 16.7% 2
+# size=14 starting. 0.10s from init. 14.3% 2
+# size=15 starting. 0.15s from init. 14.3% 2
+# size=16 starting. 0.22s from init. 12.5% 2
+# size=17 starting. 0.31s from init. 12.5% 2
+# size=18 starting. 0.42s from init. 11.1% 2
+# size=19 starting. 0.60s from init. 11.1% 2
+# size=20 starting. 0.82s from init. 10.0% 2
+# size=21 starting. 1.21s from init. 10.0% 2
+# size=22 starting. 1.70s from init. 9.1% 2
+# size=23 starting. 2.55s from init. 9.1% 2
+# size=24 starting. 3.83s from init. 8.3% 2
+# size=25 starting. 6.07s from init. 8.3% 2
+# size=26 starting. 9.43s from init. 7.7% 2
+# size=27 starting. 16.22s from init. 7.7% 2
+# size=28 starting. 26.13s from init. 7.1% 2
+# size=29 starting. 47.08s from init. 7.1% 2
+# size=30 starting. 80.85s from init. 60.0% 2
 # with at least one offset at 0
 # pygame-ce 2.5.3 (SDL 2.30.12, Python 3.12.5)
 # Starting loop
