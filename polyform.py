@@ -16,6 +16,11 @@ def wait_for_keypress():
                 running = False
 
 #---------------------------------------------------------------
+def ASSERT(condition, message="Assertion failed"):
+    if not condition:
+        raise ValueError(message)
+
+#---------------------------------------------------------------
 global_min_distance = 10**9
 
 # Maths helpers
@@ -48,6 +53,11 @@ axial_neighbors = [
     (0, -1),   # 4: northwest
     (1, -1)    # 5: northeast
 ]
+
+#---------------------------------------------------------------
+def axial_move(current, direction):
+    move = axial_neighbors[direction]
+    return (current[0] + move[0], current[1] + move[1])
 
 #---------------------------------------------------------------
 def convert_path_to_cartesian(path, edge_length=1):
@@ -105,6 +115,14 @@ class PolyformCandidate:
                 matrix[i][j] = 1
         for row in matrix:
             print(" ".join(str(cell) for cell in row))
+
+    #---------------------------------------------------------------
+    def valid_turns(self):
+        if self.polyform_type == PolyformType.POLYHEX:
+            return {1, -1}
+        elif self.polyform_type == PolyformType.POLYTRI:
+            return {2, 1, 0, -1, -2}
+        raise ValueError(f"Unknown polyform type: {self.polyform_type}")
 
     #---------------------------------------------------------------
     def build_graph(self):
@@ -182,78 +200,61 @@ class PolyformCandidate:
         return True
 
     #---------------------------------------------------------------
-    def get_longest_non_none_block_indices(self):
+    # compute the path forced by a sequence of angles and returns
+    # the crow fly distance from start to end
+    # convention: if called with all angles we discard the last as it's enough to go back to origin
+    def component_crow_fly_distance(self, start_index):
         n = self.size
-        best_start = None
-        best_length = 0
-        current_start = None
-        current_length = 0
-        # double the array virtually to handle wrap-around
-        for i in range(2 * n):
-            val = self.angles[i % n]
-            if val is not None:
-                if current_start is None:
-                    current_start = i
-                current_length += 1
-                if current_length > best_length:
-                    best_length = current_length
-                    best_start = current_start
-                if current_length == n:
-                    break
-            else:
-                current_start = None
-                current_length = 0
-        if best_start is None:
-            return (0, 0)
-        best_length = min(best_length, n)
-        return (best_start % n, best_length)
+        virtual_start = (-1, 0)
+        direction = 0
+        current = axial_move(virtual_start, direction) # should be (0, 0)
+        i = start_index
+        steps = 0  # Safety counter to prevent infinite loops
+        while self.angles[i] is not None and steps < n-1:  # n-1 because full loop distance should be counted as loop minus one angle distance
+            turn = self.angles[i]
+            direction = (direction + turn) % 6
+            current = axial_move(current, direction)
+            i = (i + 1) % n  # Move to the next index in a circular manner
+            steps += 1  # Increment safety counter
+        # Compute crow-fly (axial) distance from virtual start (-1,0) to final position
+        return axial_distance(virtual_start, current)
 
     #---------------------------------------------------------------
-    # In this version the move check part consider what's complementary to the longest continuous subpart
+    # Smart can_loop considering all components
     def can_loop(self, target=6):
         global global_min_distance
         # Turns check
         current_sum = sum(a for a in self.angles if a is not None)
         remaining_nones = self.angles.count(None)
-        # The maximum possible sum we can get by setting all None to 1
+        # The max min possible sum we can get by setting all None to 1 or -1 # TODO optim: take into account component constraints
         max_possible_sum = current_sum + remaining_nones
-        # The minimum possible sum we can get by setting all None to -1
         min_possible_sum = current_sum - remaining_nones
         if not (min_possible_sum <= target <= max_possible_sum):
             return False
         # Moves check
-        block_start, block_length = self.get_longest_non_none_block_indices()
-        if block_length == 0:
-            raise ValueError("No contiguous block of non-None angles found")
-        start = (0, 0)
-        direction = 0
-        current = start
-        total_turns = 0
-        i = block_start
-        for _ in range(block_length):
-            turn = self.angles[i]
-            direction = (direction + turn) % 6
-            move = axial_neighbors[direction]
-            current = (current[0] + move[0], current[1] + move[1])
-            i = (i + 1) % self.size
-        remaining_items = len(self.angles) - block_length
-        required_steps = axial_distance(current, start)
-        if remaining_items < required_steps:  # Exact for polytri and seems good approx for polyhex
+        n = self.size
+        component_distances = []
+        # If no None values, there's only one component (the entire sequence)
+        if remaining_nones == 0:
+            cfd = self.component_crow_fly_distance(0) #do not consider the last turn in the path
+            return cfd == 0
+        # Other cases
+        for i in range(n):
+            prev_index = (i - 1) % n  # Circular indexing for previous index
+            if self.angles[i] is not None and self.angles[prev_index] is None:
+                component_distances.append(self.component_crow_fly_distance(i))
+        ASSERT(component_distances, "No components")
+        largest_distance = max(component_distances)
+        sum_other_distances = sum(component_distances) - largest_distance
+        free_moves = remaining_nones - len(component_distances)
+        ASSERT(free_moves >= 0, "Negative free_moves")
+        if largest_distance > sum_other_distances + free_moves:
             return False
-        # distance = self.size - total_turns
         if remaining_nones < global_min_distance:
             #self.draw()
             #wait_for_keypress()
             global_min_distance = remaining_nones  # Update global if new distance is smaller
         return True
-
-    #---------------------------------------------------------------
-    def valid_turns(self):
-        if self.polyform_type == PolyformType.POLYHEX:
-            return {1, -1}
-        elif self.polyform_type == PolyformType.POLYTRI:
-            return {2, 1, 0, -1, -2}
-        raise ValueError(f"Unknown polyform type: {self.polyform_type}")
 
     #---------------------------------------------------------------
     def is_valid_loop(self):
@@ -269,27 +270,6 @@ class PolyformCandidate:
         #if distance < global_min_distance:
         #    global_min_distance = distance  # Update global if new distance is smaller
         return (current == (0, 0)) and (direction == 0)
-
-    #---------------------------------------------------------------
-#     def is_self_intersecting(self):
-#         start = (0, 0)
-#         visited = {start}
-#         direction = 0
-#         current = start
-#         for i, turn in enumerate(self.angles):
-#             if turn is None:
-#                 return False
-#             direction = (direction + turn) % 6
-#             move = axial_neighbors[direction]
-#             current = (current[0] + move[0], current[1] + move[1])
-#             if i < len(self.angles) - 1:
-#                 if current in visited:
-#                     return True
-#             else:
-#                 if current != start and current in visited:
-#                     return True
-#             visited.add(current)
-#         return False
 
     #---------------------------------------------------------------
     def is_component_self_intersecting(self, start_index):
@@ -381,6 +361,33 @@ class PolyformCandidate:
             draw_multicolor_segment(screen, points[i], points[next_i],
                                     colors=[base_color, mappingA_color, mappingB_color],
                                     width=3)
+
+    #---------------------------------------------------------------
+    def get_longest_non_none_block_indices(self):
+        n = self.size
+        best_start = None
+        best_length = 0
+        current_start = None
+        current_length = 0
+        # double the array virtually to handle wrap-around
+        for i in range(2 * n):
+            val = self.angles[i % n]
+            if val is not None:
+                if current_start is None:
+                    current_start = i
+                current_length += 1
+                if current_length > best_length:
+                    best_length = current_length
+                    best_start = current_start
+                if current_length == n:
+                    break
+            else:
+                current_start = None
+                current_length = 0
+        if best_start is None:
+            return (0, 0)
+        best_length = min(best_length, n)
+        return (best_start % n, best_length)
 
     #---------------------------------------------------------------
     def draw(self, edge_length=40, window_size=(800, 600)):
@@ -588,30 +595,36 @@ if __name__ == '__main__':
 
 # STATS
 # with at most one offset at 0,  critical angles at 2, count intersection 0 or 1
-# with optim can loop on longuest subpart
+# with latest optims
 # Starting loop
 # size=3 starting. 0.00s from init.
 # size=4 starting. 0.00s from init. 50.0% 1000000000
 # size=5 starting. 0.00s from init. 50.0% 1000000000
 # size=6 starting. 0.00s from init. 33.3% 1000000000
 # size=7 starting. 0.00s from init. 33.3% 3
-# size=8 starting. 0.01s from init. 25.0% 1
-# size=9 starting. 0.01s from init. 25.0% 2
-# size=10 starting. 0.02s from init. 20.0% 1
+# size=8 starting. 0.00s from init. 25.0% 3
+# size=9 starting. 0.01s from init. 25.0% 3
+# size=10 starting. 0.02s from init. 20.0% 2
 # size=11 starting. 0.03s from init. 20.0% 2
-# size=12 starting. 0.05s from init. 16.7% 1
-# size=13 starting. 0.09s from init. 16.7% 1
-# size=14 starting. 0.14s from init. 14.3% 1
-# size=15 starting. 0.25s from init. 14.3% 1
-# size=16 starting. 0.43s from init. 12.5% 1
-# size=17 starting. 0.78s from init. 12.5% 1
-# size=18 starting. 1.43s from init. 11.1% 1
-# size=19 starting. 2.80s from init. 11.1% 1
-# size=20 starting. 5.41s from init. 10.0% 1
-# size=21 starting. 11.16s from init. 10.0% 1
-# size=22 starting. 21.88s from init. 9.1% 1
-# size=23 starting. 45.86s from init. 9.1% 1
-# size=24 starting. 91.31s from init. 8.3% 1
+# size=12 starting. 0.04s from init. 16.7% 2
+# size=13 starting. 0.06s from init. 16.7% 2
+# size=14 starting. 0.09s from init. 14.3% 2
+# size=15 starting. 0.14s from init. 14.3% 2
+# size=16 starting. 0.20s from init. 12.5% 2
+# size=17 starting. 0.28s from init. 12.5% 2
+# size=18 starting. 0.40s from init. 11.1% 2
+# size=19 starting. 0.58s from init. 11.1% 2
+# size=20 starting. 0.84s from init. 10.0% 2
+# size=21 starting. 1.27s from init. 10.0% 2
+# size=22 starting. 1.89s from init. 9.1% 2
+# size=23 starting. 2.97s from init. 9.1% 2
+# size=24 starting. 4.71s from init. 8.3% 2
+# size=25 starting. 7.66s from init. 8.3% 2
+# size=26 starting. 12.75s from init. 7.7% 2
+# size=27 starting. 22.19s from init. 7.7% 2
+# size=28 starting. 37.55s from init. 7.1% 2
+# size=29 starting. 68.14s from init. 7.1% 2
+# size=30 starting. 120.63s from init. 60.0% 2
 # with at least one offset at 0
 # pygame-ce 2.5.3 (SDL 2.30.12, Python 3.12.5)
 # Starting loop
