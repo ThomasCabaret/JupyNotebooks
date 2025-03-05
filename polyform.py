@@ -9,11 +9,14 @@ from collections import deque
 # Interaction helpers
 #---------------------------------------------------------------
 def wait_for_keypress():
-    running = True
-    while running:
+    waiting = True
+    while waiting:
         for event in pygame.event.get():
-            if event.type == pygame.QUIT or event.type == pygame.KEYDOWN:
-                running = False
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()  # Properly exit the program on window close
+            elif event.type == pygame.KEYDOWN:
+                waiting = False
 
 #---------------------------------------------------------------
 def ASSERT(condition, message="Assertion failed"):
@@ -152,7 +155,7 @@ class PolyformCandidate:
             graph[start_b + i].add(j)
             if not start_b + i == j: # no reverse if on itself
                 graph[j].add(start_b + i)
-        return graph
+        self.graph = graph
 
     #---------------------------------------------------------------
     def build_components(self):
@@ -171,7 +174,7 @@ class PolyformCandidate:
                             visited[neighbor] = True
                             stack.append(neighbor)
                 components.append(comp)
-        return components
+        self.components = components
 
     #---------------------------------------------------------------
     def sort_components(self):
@@ -324,8 +327,7 @@ class PolyformCandidate:
         current = start
         for turn in self.angles:
             direction = (direction + turn) % 6
-            move = axial_neighbors[direction]
-            current = (current[0] + move[0], current[1] + move[1])
+            current = axial_move(current, direction)
         #distance = abs(current[0] - start[0]) + abs(current[1] - start[1])
         #if distance < global_min_distance:
         #    global_min_distance = distance  # Update global if new distance is smaller
@@ -342,8 +344,7 @@ class PolyformCandidate:
         while self.angles[i] is not None and steps < n-1: # we do not consider the last when called on the whole loop
             turn = self.angles[i]
             direction = (direction + turn) % 6
-            move = axial_neighbors[direction]
-            current = (current[0] + move[0], current[1] + move[1])
+            current = axial_move(current, direction)
             if current in visited:
                 return True
             visited.add(current)
@@ -384,8 +385,7 @@ class PolyformCandidate:
             while i < n and self.angles[i] is not None:
                 turn = self.angles[i]
                 direction = (direction + turn) % 6
-                move = axial_neighbors[direction]
-                current = (current[0] + move[0], current[1] + move[1])
+                current = axial_move(current, direction)
                 if current in visited:
                     if not (allowed_return and current == block_start and i == n-1):
                         intersection_count += 1
@@ -413,8 +413,8 @@ class PolyformCandidate:
 
     #---------------------------------------------------------------
     def draw_edges_helper(self, screen, points, mappedA, mappedB):
-        for i in range(len(points) - 1):
-            next_i = i + 1
+        for i in range(len(points)):
+            next_i = (i + 1) % self.size
             base_color = (255, 0, 0) if (1 <= next_i <= self.idx_b_pole) else (0, 0, 255)
             mappingA_color = (255, 20, 147) if (i in mappedA and next_i in mappedA) else None
             mappingB_color = (0, 200, 255) if (i in mappedB and next_i in mappedB) else None
@@ -450,7 +450,7 @@ class PolyformCandidate:
         return (best_start % n, best_length)
 
     #---------------------------------------------------------------
-    def draw(self, edge_length=40, window_size=(800, 600)):
+    def draw(self, edge_length=40, window_size=(1400, 800)):
         pygame.display.set_caption(str(self))
         screen = pygame.display.set_mode(window_size)
         screen.fill((255, 255, 255))
@@ -467,19 +467,28 @@ class PolyformCandidate:
         for _ in range(block_length-1):   # probably a cleaner way to write that
             turn = self.angles[i]
             direction = (direction + turn) % 6
-            move = axial_neighbors[direction]
-            current = (current[0] + move[0], current[1] + move[1])
+            current = axial_move(current, direction)
             candidate_path.append(current)
             candidate_indices.append(i)
             #print("INCR", candidate_path, candidate_indices)
             i = (i + 1) % self.size
         #print(candidate_path)
         cartesian_path = [axial_to_cartesian(pt, edge_length) for pt in candidate_path]
+        # Auto zoom: scale points to fit the window with a small margin
         xs = [pt[0] for pt in cartesian_path]
         ys = [pt[1] for pt in cartesian_path]
-        offset_x = (window_size[0] - (max(xs) - min(xs))) / 2 - min(xs)
-        offset_y = (window_size[1] - (max(ys) - min(ys))) / 2 - min(ys)
-        adjusted_points = [(pt[0] + offset_x, pt[1] + offset_y) for pt in cartesian_path]
+        shape_width = max(xs) - min(xs)
+        shape_height = max(ys) - min(ys)
+        margin = 50  # small margin in pixels
+        available_width = window_size[0] - 2 * margin
+        available_height = window_size[1] - 2 * margin
+        scale = min(available_width / shape_width, available_height / shape_height)
+        scaled_points = [(pt[0] * scale, pt[1] * scale) for pt in cartesian_path]
+        xs_scaled = [pt[0] for pt in scaled_points]
+        ys_scaled = [pt[1] for pt in scaled_points]
+        offset_x = (window_size[0] - (max(xs_scaled) - min(xs_scaled))) / 2 - min(xs_scaled)
+        offset_y = (window_size[1] - (max(ys_scaled) - min(ys_scaled))) / 2 - min(ys_scaled)
+        adjusted_points = [(pt[0] + offset_x, pt[1] + offset_y) for pt in scaled_points]
         # Draw edges:
         mappedA, mappedB = self.compute_mappings()
         self.draw_edges_helper(screen, adjusted_points, mappedA, mappedB)
@@ -554,8 +563,8 @@ class PolyformCandidate:
     #---------------------------------------------------------------
     def initSearchState(self):
         # Build graph and deduce its connected subgraphs
-        self.graph = self.build_graph()
-        self.components = self.build_components()
+        self.build_graph()
+        self.build_components()
         # Another tentative heuristic
         self.compute_components_angles()
         # Heuristic to be tested and tuned
@@ -691,6 +700,13 @@ if __name__ == '__main__':
 # size=28 starting. 15.96s from init. 7.1% 1
 # size=29 starting. 23.84s from init. 7.1% 1
 # size=30 starting. 38.61s from init. 66.7% 2
+...
+# size=35 starting. 0.00s from init. 5.9% 1
+# size=36 starting. 279.17s from init. 5.6% 1
+# size=37 starting. 673.92s from init. 5.6% 1
+# size=38 starting. 1308.23s from init. 5.3% 1
+# size=39 starting. 2573.51s from init. 5.3% 1
+# size=40 starting. 4360.30s from init. 65.0% 1
 # removed bug from canloop 2*
 # Starting loop
 # size=3 starting. 0.00s from init.
