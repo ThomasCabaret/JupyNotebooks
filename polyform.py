@@ -314,8 +314,8 @@ class PolyformCandidate:
         if largest_distance > sum_other_distances + free_moves:
             return False
         if remaining_nones < global_min_distance:
-            #self.draw()
-            #wait_for_keypress()
+            self.draw()
+            # wait_for_keypress()
             global_min_distance = remaining_nones  # Update global if new distance is smaller
         return True
 
@@ -412,12 +412,17 @@ class PolyformCandidate:
         return mappedA, mappedB
 
     #---------------------------------------------------------------
-    def draw_edges_helper(self, screen, points, mappedA, mappedB):
-        for i in range(len(points)):
+    def draw_edges_helper(self, screen, points, mappedA, mappedB, original_indices):
+        for i in range(len(points)):  # we want to loop when we have the whole shape
             next_i = (i + 1) % self.size
-            base_color = (255, 0, 0) if (1 <= next_i <= self.idx_b_pole) else (0, 0, 255)
-            mappingA_color = (255, 20, 147) if (i in mappedA and next_i in mappedA) else None
-            mappingB_color = (0, 200, 255) if (i in mappedB and next_i in mappedB) else None
+            if next_i >= len(points):
+                return
+            # Use the original indices from candidate_indices instead of local indices
+            orig_idx_current = original_indices[i]
+            orig_idx_next = original_indices[next_i]
+            base_color = (255, 0, 0) if (1 <= orig_idx_next <= self.idx_b_pole) else (0, 0, 255)
+            mappingA_color = (255, 20, 147) if (orig_idx_current in mappedA and orig_idx_next in mappedA) else None
+            mappingB_color = (0, 200, 255) if (orig_idx_current in mappedB and orig_idx_next in mappedB) else None
             draw_multicolor_segment(screen, points[i], points[next_i],
                                     colors=[base_color, mappingA_color, mappingB_color],
                                     width=3)
@@ -455,24 +460,22 @@ class PolyformCandidate:
         screen = pygame.display.set_mode(window_size)
         screen.fill((255, 255, 255))
         # Instead of starting at vertex 0, start at the block defined by get_longest_non_none_block_indices
-        block_start, block_length = self.get_longest_non_none_block_indices()
-        #fixed_point = (-1, 0)
-        candidate_start = (0, 0)
-        candidate_path = [candidate_start]
-        candidate_indices = [block_start]  # store the original index from self.angles
-        #print("INIT", candidate_path, candidate_indices)
-        direction = 0
-        current = candidate_start
-        i = (block_start + 1) % self.size
-        for _ in range(block_length-1):   # probably a cleaner way to write that
+        i_block_start, block_length = self.get_longest_non_none_block_indices()
+        original_indices = [] # to store the original index from self.angles
+        starting_point = (0, 0) # location of the first angle
+        candidate_path = [starting_point]
+        direction = 0 # direction prior to first angle
+        current = starting_point
+        for j in range(0, block_length):
+            i = (i_block_start + j) % self.size
+            original_indices.append(i)
             turn = self.angles[i]
             direction = (direction + turn) % 6
             current = axial_move(current, direction)
             candidate_path.append(current)
-            candidate_indices.append(i)
-            #print("INCR", candidate_path, candidate_indices)
-            i = (i + 1) % self.size
-        #print(candidate_path)
+        # We need to add the indice of the next angle (as the point were it will be applied is in the point list)
+        original_indices.append((i_block_start + block_length) % self.size)
+        # If all angles are applied we are supposed to be back at starting_point = (0, 0)
         cartesian_path = [axial_to_cartesian(pt, edge_length) for pt in candidate_path]
         # Auto zoom: scale points to fit the window with a small margin
         xs = [pt[0] for pt in cartesian_path]
@@ -482,7 +485,7 @@ class PolyformCandidate:
         margin = 50  # small margin in pixels
         available_width = window_size[0] - 2 * margin
         available_height = window_size[1] - 2 * margin
-        scale = min(available_width / shape_width, available_height / shape_height)
+        scale = min(available_width / max(shape_width, 2.0), available_height /  max(shape_height, 2.0))
         scaled_points = [(pt[0] * scale, pt[1] * scale) for pt in cartesian_path]
         xs_scaled = [pt[0] for pt in scaled_points]
         ys_scaled = [pt[1] for pt in scaled_points]
@@ -490,18 +493,17 @@ class PolyformCandidate:
         offset_y = (window_size[1] - (max(ys_scaled) - min(ys_scaled))) / 2 - min(ys_scaled)
         adjusted_points = [(pt[0] + offset_x, pt[1] + offset_y) for pt in scaled_points]
         # Draw edges:
-        mappedA, mappedB = self.compute_mappings()
-        self.draw_edges_helper(screen, adjusted_points, mappedA, mappedB)
+        mappedA, mappedB = self.compute_mappings() # They are supposed to include boundaries
+        self.draw_edges_helper(screen, adjusted_points, mappedA, mappedB, original_indices)
         # Draw labels:
         font = pygame.font.SysFont("Consolas", 14, bold=True)
         for j, pos in enumerate(adjusted_points):
             pygame.draw.circle(screen, (0, 0, 0), (int(pos[0]), int(pos[1])), 4)
-            idx = (candidate_indices[j] + 1) % self.size  # I do not get why +1 is needed here but it is
-            #print(j, idx, candidate_indices)
+            idx = original_indices[j]
             if idx < len(self.angles) and self.angles[idx] is not None:
                 label = "{} ({})".format(idx, self.angles[idx])
                 text_surface = font.render(label, True, (0, 0, 0))
-                # Position the text so that its midleft is at (pos[0] + shift, pos[1])
+                # Position the text so that its midleft to it's point
                 text_rect = text_surface.get_rect(midleft=(int(pos[0]) + 5, int(pos[1])))
                 screen.blit(text_surface, text_rect)
         pygame.display.flip()
