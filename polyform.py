@@ -25,6 +25,7 @@ def ASSERT(condition, message="Assertion failed"):
 
 #---------------------------------------------------------------
 global_min_distance = 10**9
+max_debug_kpi = 0
 
 # Maths helpers
 #---------------------------------------------------------------
@@ -61,6 +62,14 @@ axial_neighbors = [
 def axial_move(current, direction):
     move = axial_neighbors[direction]
     return (current[0] + move[0], current[1] + move[1])
+
+#---------------------------------------------------------------
+# In the program angles are from -2 to 2
+def compatible_axial_angles(a, b, c):
+    min_a = 2 if a is None else a # is the most acute angle
+    min_b = 2 if b is None else b
+    min_c = 2 if c is None else c
+    return min_a + min_b + min_c >= 3
 
 #---------------------------------------------------------------
 def convert_path_to_cartesian(path, edge_length=1):
@@ -147,7 +156,7 @@ class PolyformCandidate:
         start_b, end_b = self.idx_b_pole, 0  # Start and end of section B
         start_b_proj = (start_b + self.b_offset) % self.size if not self.b_flip else (end_b + self.b_offset) % self.size
         end_b_proj = (end_b + self.b_offset) % self.size if not self.b_flip else (start_b + self.b_offset) % self.size
-        for i in range(1, self.size - self.idx_b_pole):
+        for i in range(1, self.size - self.idx_b_pole): # We do not connect bondaries to their projection
             if self.b_flip:
                 j = (start_b_proj - i) % self.size
             else:
@@ -279,7 +288,7 @@ class PolyformCandidate:
     #---------------------------------------------------------------
     # Smart can_loop considering all components
     def can_loop(self, target=6):
-        global global_min_distance
+        global global_min_distance, max_debug_kpi
         # Turns check
         current_sum = sum(a for a in self.angles if a is not None)
         remaining_nones = self.angles.count(None)
@@ -314,9 +323,14 @@ class PolyformCandidate:
         if largest_distance > sum_other_distances + free_moves:
             return False
         if remaining_nones < global_min_distance:
-            self.draw()
+            # self.draw()
             # wait_for_keypress()
             global_min_distance = remaining_nones  # Update global if new distance is smaller
+#         i_block_start, block_length = self.get_longest_non_none_block_indices() # for debug only
+#         if block_length > max_debug_kpi:
+#             self.draw()
+#             wait_for_keypress()
+#             max_debug_kpi = block_length
         return True
 
     #---------------------------------------------------------------
@@ -577,11 +591,11 @@ class PolyformCandidate:
         self.angles = [None] * self.size
         # Set initial fixed angles
         self.angles[0] = 2   # TODO ###############################################"
-        self.angles[self.idx_b_pole % self.size] = 2
-        self.angles[self.a_offset % self.size] = 2
-        self.angles[(self.idx_b_pole + self.a_offset) % self.size] = 2
-        self.angles[self.b_offset % self.size] = 2
-        self.angles[(self.idx_b_pole + self.b_offset) % self.size] = 2
+#         self.angles[self.idx_b_pole % self.size] = 2
+#         self.angles[self.a_offset % self.size] = 2
+#         self.angles[(self.idx_b_pole + self.a_offset) % self.size] = 2
+#         self.angles[self.b_offset % self.size] = 2
+#         self.angles[(self.idx_b_pole + self.b_offset) % self.size] = 2
         if not self.propagate_fixed():
             return False
         for comp in self.components:
@@ -604,8 +618,21 @@ class PolyformCandidate:
         return True
 
     #---------------------------------------------------------------
+    def has_consistent_bondaries_angles(self):
+        north_blue = self.angles[0 + self.b_offset] if not self.b_flip else self.angles[(self.idx_b_pole + self.b_offset) % self.size]
+        north_red = self.angles[0 + self.a_offset] if not self.a_flip else self.angles[(self.idx_b_pole + self.a_offset) % self.size]
+        if not compatible_axial_angles(self.angles[0], north_blue, north_red):
+            return False
+        south_blue = self.angles[(self.idx_b_pole + self.b_offset) % self.size] if not self.b_flip else self.angles[0 + self.b_offset]
+        south_red = self.angles[(self.idx_b_pole + self.a_offset) % self.size] if not self.a_flip else self.angles[0 + self.a_offset]
+        return compatible_axial_angles(self.angles[self.idx_b_pole], south_blue, south_red)
+
+    #---------------------------------------------------------------
     def backtrack_components(self, comp_index=0):
         if self.is_self_intersecting() or not self.can_loop():
+            return
+        #Prune inconsistent bondaries angles there (if forced some could be set earlier)
+        if not self.has_consistent_bondaries_angles():
             return
         if comp_index == len(self.components):
             #if self.is_valid_loop():
@@ -648,6 +675,7 @@ if __name__ == '__main__':
         header = f"size={size} starting. {elapsed_time:.2f}s from init. "
         print(header, end="", flush=True)
         global_min_distance = 10**9
+        max_debug_kpi = 0
         total = size // 2
         for idx_b_pole in range(total - 1, 0, -1): # Starting by ballanced split
             percentage = (idx_b_pole / total) * 100
@@ -672,6 +700,31 @@ if __name__ == '__main__':
 
 # STATS
 # with at most one offset at 0,  critical angles at 2, count intersection 0 or 1
+# test with all boundaries angles backtrack except one forced at 2
+# Starting loop
+# size=3 starting. 0.00s from init.
+# size=4 starting. 0.00s from init. 50.0% 1000000000
+# size=5 starting. 0.00s from init. 50.0% 1000000000
+# size=6 starting. 0.00s from init. 33.3% 1
+# size=7 starting. 0.01s from init. 33.3% 2
+# size=8 starting. 0.02s from init. 25.0% 2
+# size=9 starting. 0.03s from init. 25.0% 1
+# size=10 starting. 0.06s from init. 20.0% 2
+# size=11 starting. 0.10s from init. 20.0% 1
+# size=12 starting. 0.16s from init. 16.7% 1
+# size=13 starting. 0.25s from init. 16.7% 2
+# size=14 starting. 0.38s from init. 14.3% 1
+# size=15 starting. 0.58s from init. 14.3% 1
+# size=16 starting. 0.88s from init. 12.5% 1
+# size=17 starting. 1.34s from init. 12.5% 1
+# size=18 starting. 2.02s from init. 11.1% 1
+# size=19 starting. 3.08s from init. 11.1% 1
+# size=20 starting. 4.79s from init. 10.0% 1
+# size=21 starting. 7.66s from init. 10.0% 1
+# size=22 starting. 12.04s from init. 9.1% 1
+# size=23 starting. 19.88s from init. 9.1% 1
+# size=24 starting. 33.11s from init. 8.3% 1
+# size=25 starting. 54.71s from init. 83.3% 2
 # can loop angle optim
 # Starting loop
 # size=3 starting. 0.00s from init.
