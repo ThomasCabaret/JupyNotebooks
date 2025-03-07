@@ -48,6 +48,13 @@ def axial_distance(axial1, axial2):
     return (abs(q1 - q2) + abs(r1 - r2) + abs((q1 + r1) - (q2 + r2))) // 2
 
 #---------------------------------------------------------------
+# up to a multiplicative constant
+def exact_cartesian_squared_distance_from_axial(axial_point1, axial_point2):
+    da = axial_point1[0] - axial_point2[0]
+    db = axial_point1[1] - axial_point2[1]
+    return da * da + da * db + db * db
+
+#---------------------------------------------------------------
 # Neighbor directions for hex grid (axial coordinates)
 axial_neighbors = [
     (1, 0),    # 0: east
@@ -70,6 +77,18 @@ def compatible_axial_angles(a, b, c):
     min_b = 2 if b is None else b
     min_c = 2 if c is None else c
     return min_a + min_b + min_c >= 3
+
+#---------------------------------------------------------------
+def is_mapping_consistent(source_points, target_points):
+    ASSERT(len(source_points) == len(target_points), "Origin an destination length differs")
+    n = len(source_points)
+    for i in range(n):
+        for j in range(i + 1, n):
+            source_dist = exact_cartesian_squared_distance_from_axial(source_points[i], source_points[j])
+            target_dist = exact_cartesian_squared_distance_from_axial(target_points[i], target_points[j])
+            if source_dist != target_dist:
+                return False
+    return True
 
 #---------------------------------------------------------------
 def convert_path_to_cartesian(path, edge_length=1):
@@ -139,7 +158,9 @@ class PolyformCandidate:
 
     #---------------------------------------------------------------
     def build_graph(self):
-        graph = {i: set() for i in range(self.size)}
+        self.graph = {i: set() for i in range(self.size)}
+        self.mapping_a = {}  # Store A mappings (one-way)
+        self.mapping_b = {}  # Store B mappings (one-way)
         # Mapping A (same as in draw_schema)
         start_a, end_a = 0, self.idx_b_pole  # Start and end of section A
         start_a_proj = (start_a + self.a_offset) % self.size if not self.a_flip else (end_a + self.a_offset) % self.size
@@ -149,9 +170,10 @@ class PolyformCandidate:
                 j = (start_a_proj - i) % self.size
             else:
                 j = (start_a_proj + i) % self.size
-            graph[start_a + i].add(j)
+            self.mapping_a[start_a + i] = j
+            self.graph[start_a + i].add(j)
             if not start_a + i == j: # no reverse if on itself
-                graph[j].add(start_a + i)
+                self.graph[j].add(start_a + i)
         # Mapping B (same logic)
         start_b, end_b = self.idx_b_pole, 0  # Start and end of section B
         start_b_proj = (start_b + self.b_offset) % self.size if not self.b_flip else (end_b + self.b_offset) % self.size
@@ -161,10 +183,10 @@ class PolyformCandidate:
                 j = (start_b_proj - i) % self.size
             else:
                 j = (start_b_proj + i) % self.size
-            graph[start_b + i].add(j)
+            self.mapping_b[start_b + i] = j
+            self.graph[start_b + i].add(j)
             if not start_b + i == j: # no reverse if on itself
-                graph[j].add(start_b + i)
-        self.graph = graph
+                self.graph[j].add(start_b + i)
 
     #---------------------------------------------------------------
     def build_components(self):
@@ -269,7 +291,7 @@ class PolyformCandidate:
     # compute the path forced by a sequence of angles and returns
     # the crow fly distance from start to end
     # convention: if called with all angles we discard the last as it's enough to go back to origin
-    def component_crow_fly_distance(self, start_index):
+    def sector_crow_fly_distance(self, start_index):
         n = self.size
         virtual_start = (-1, 0)
         direction = 0
@@ -305,20 +327,20 @@ class PolyformCandidate:
             return False
         # Moves check
         n = self.size
-        component_distances = []
+        sector_distances = []
         # If no None values, there's only one component (the entire sequence)
         if remaining_nones == 0:
-            cfd = self.component_crow_fly_distance(0) #do not consider the last turn in the path
+            cfd = self.sector_crow_fly_distance(0) #do not consider the last turn in the path
             return cfd == 0
         # Other cases
         for i in range(n):
             prev_index = (i - 1) % n  # Circular indexing for previous index
             if self.angles[i] is not None and self.angles[prev_index] is None:
-                component_distances.append(self.component_crow_fly_distance(i))
-        ASSERT(component_distances, "No components")
-        largest_distance = max(component_distances)
-        sum_other_distances = sum(component_distances) - largest_distance
-        free_moves = remaining_nones - len(component_distances)
+                sector_distances.append(self.sector_crow_fly_distance(i))
+        ASSERT(sector_distances, "No components")
+        largest_distance = max(sector_distances)
+        sum_other_distances = sum(sector_distances) - largest_distance
+        free_moves = remaining_nones - len(sector_distances)
         ASSERT(free_moves >= 0, "Negative free_moves")
         if largest_distance > sum_other_distances + free_moves:
             return False
@@ -380,33 +402,95 @@ class PolyformCandidate:
         return False
 
     #---------------------------------------------------------------
-    # for testing and debug
-    def count_self_intersections(self):
+    def get_point_path_and_indices(self, start_index, length):
         n = self.size
-        i = 0
-        first_block = True
-        intersection_count = 0
-        while i < n:
-            while i < n and self.angles[i] is None:
-                i += 1
-            if i >= n:
-                break
-            block_start = (0, 0)
-            visited = {block_start}
-            direction = 0
-            current = block_start
-            allowed_return = first_block
-            while i < n and self.angles[i] is not None:
-                turn = self.angles[i]
-                direction = (direction + turn) % 6
-                current = axial_move(current, direction)
-                if current in visited:
-                    if not (allowed_return and current == block_start and i == n-1):
-                        intersection_count += 1
-                visited.add(current)
-                i += 1
-            first_block = False
-        return intersection_count
+        # Build the list of indices along the border.
+        indices = [ (start_index - 1) % n ]
+        for i in range(length):
+            indices.append((start_index + i) % n)
+        # Build the corresponding point path.
+        # Convention: the virtual start point corresponds to the index (start_index - 1)
+        # and is fixed to (-1, 0).
+        path = []
+        virtual_start = (-1, 0)
+        path.append(virtual_start)  # coordinate for index (start_index - 1)
+        direction = 0
+        # The first actual point (corresponding to index start_index)
+        current = axial_move(virtual_start, direction)
+        path.append(current)
+        # For each index in the contiguous block, update direction and position.
+        i = start_index
+        steps = 1  # Already computed for index start_index
+        while steps < length:
+            turn = self.angles[i]
+            direction = (direction + turn) % 6
+            current = axial_move(current, direction)
+            path.append(current)
+            i = (i + 1) % n
+            steps += 1
+        return indices, path
+
+    #---------------------------------------------------------------
+    def is_mapping_consistency_on_longest(self):
+        global max_debug_kpi
+        # Get the longest contiguous block of non-None angles.
+        start, block_length = self.get_longest_non_none_block_indices()
+        # Build the point path and corresponding indices.
+        indices, path = self.get_point_path_and_indices(start, block_length)
+        # Create a dictionary mapping each index on the path to its coordinate.
+        index_to_point = { idx: pt for idx, pt in zip(indices, path) }
+        # Extract mapping pairs from mapping_a where both origin and destination are on the path.
+        mapping_a_pairs = [(origin, dest)
+                           for origin, dest in self.mapping_a.items()
+                           if origin in index_to_point and dest in index_to_point]
+        # Similarly for mapping_b.
+        mapping_b_pairs = [(origin, dest)
+                           for origin, dest in self.mapping_b.items()
+                           if origin in index_to_point and dest in index_to_point]
+        # Build coordinate lists for mapping_a.
+        source_points_a = [index_to_point[origin] for origin, _ in mapping_a_pairs]
+        target_points_a = [index_to_point[dest] for _, dest in mapping_a_pairs]
+        consistent_a = is_mapping_consistent(source_points_a, target_points_a)
+        if not consistent_a:
+            return
+        # Build coordinate lists for mapping_b.
+        source_points_b = [index_to_point[origin] for origin, _ in mapping_b_pairs]
+        target_points_b = [index_to_point[dest] for _, dest in mapping_b_pairs]
+        consistent_b = is_mapping_consistent(source_points_b, target_points_b)
+        if consistent_b and block_length > max_debug_kpi:
+            self.draw()
+#            wait_for_keypress()
+            max_debug_kpi = block_length
+        return consistent_b
+
+    #---------------------------------------------------------------
+    # for testing and debug
+#     def count_self_intersections(self):
+#         n = self.size
+#         i = 0
+#         first_block = True
+#         intersection_count = 0
+#         while i < n:
+#             while i < n and self.angles[i] is None:
+#                 i += 1
+#             if i >= n:
+#                 break
+#             block_start = (0, 0)
+#             visited = {block_start}
+#             direction = 0
+#             current = block_start
+#             allowed_return = first_block
+#             while i < n and self.angles[i] is not None:
+#                 turn = self.angles[i]
+#                 direction = (direction + turn) % 6
+#                 current = axial_move(current, direction)
+#                 if current in visited:
+#                     if not (allowed_return and current == block_start and i == n-1):
+#                         intersection_count += 1
+#                 visited.add(current)
+#                 i += 1
+#             first_block = False
+#         return intersection_count
 
     # Helper methods added to PolyformCandidate
     #---------------------------------------------------------------
@@ -631,8 +715,12 @@ class PolyformCandidate:
     def backtrack_components(self, comp_index=0):
         if self.is_self_intersecting() or not self.can_loop():
             return
-        #Prune inconsistent bondaries angles there (if forced some could be set earlier)
+        #Prune inconsistent bondaries angles there (optim: if forced some could be set earlier)
         if not self.has_consistent_bondaries_angles():
+            return
+        if not self.is_mapping_consistency_on_longest():
+            #self.draw()
+            #wait_for_keypress()
             return
         if comp_index == len(self.components):
             #if self.is_valid_loop():
@@ -666,7 +754,7 @@ if __name__ == '__main__':
 #         testCandidate.backtrack_components()
 #     print("End TEST")
 #     wait_for_keypress()
-    START_SIZE = 3  # Min for polyhex would be 6
+    START_SIZE = 34  # Min for polyhex would be 6
     MAX_SIZE = 10000
     start_time = time.time()
     print("Starting loop")
@@ -685,6 +773,8 @@ if __name__ == '__main__':
                 for b_offset in range(0, size):
                     if a_offset == 0 and b_offset == 0:   # FILTER --------
                         continue
+                    #if a_offset == 0 or b_offset == 0:   # FILTER --------  ---------------------------------------
+                    #    continue
                     #if not (a_offset == 0 or b_offset == 0):  # FILTER --------
                     #    continue
                     for a_flip in [False, True]:
@@ -701,6 +791,31 @@ if __name__ == '__main__':
 # STATS
 # with at most one offset at 0,  critical angles at 2, count intersection 0 or 1
 # test with all boundaries angles backtrack except one forced at 2
+# with consistency check
+# Starting loop
+# size=3 starting. 0.00s from init.
+# size=4 starting. 0.00s from init. 50.0% 1000000000
+# size=5 starting. 0.00s from init. 50.0% 1000000000
+# size=6 starting. 0.00s from init. 33.3% 1
+# size=7 starting. 0.01s from init. 33.3% 2
+# size=8 starting. 0.02s from init. 25.0% 2
+# size=9 starting. 0.04s from init. 25.0% 1
+# size=10 starting. 0.06s from init. 20.0% 2
+# size=11 starting. 0.11s from init. 20.0% 2
+# size=12 starting. 0.17s from init. 16.7% 1
+# size=13 starting. 0.28s from init. 16.7% 2
+# size=14 starting. 0.43s from init. 14.3% 1
+# size=15 starting. 0.66s from init. 14.3% 1
+# size=16 starting. 1.00s from init. 12.5% 2
+# size=17 starting. 1.53s from init. 12.5% 2
+# size=18 starting. 2.32s from init. 11.1% 1
+# size=19 starting. 3.55s from init. 11.1% 1
+# size=20 starting. 5.56s from init. 10.0% 1
+# size=21 starting. 8.89s from init. 10.0% 1
+# size=22 starting. 14.06s from init. 9.1% 1
+# size=23 starting. 23.30s from init. 9.1% 1
+# size=24 starting. 38.45s from init. 66.7% 2
+# wihtout consistency check
 # Starting loop
 # size=3 starting. 0.00s from init.
 # size=4 starting. 0.00s from init. 50.0% 1000000000
