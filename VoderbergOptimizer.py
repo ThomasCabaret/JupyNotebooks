@@ -4,6 +4,15 @@ from autograd import grad
 import autograd.numpy as np
 import pygame
 from scipy.optimize import minimize
+from scipy.optimize import basinhopping
+import torch
+import threading
+import enum
+
+class SolverType(enum.Enum):
+    BASIN_HOPPING = 1
+    TORCH_ADAM = 2
+    SIMPLE_GRADIENT_DESCENT = 3
 
 # Constants
 SCREEN_SIZE = (800, 800)
@@ -139,10 +148,10 @@ def safe_exp(x, max_exp=500):
 
 #-------------------------------------------------------------------------
 def scaled_sigmoid(x, amplitude, min_distance):
-    alpha = 24 / min_distance  
-    sigmoid_value = amplitude / (1 + safe_exp(alpha * x))
-    slope_correction = (amplitude * 0.1) * x / (1 + safe_exp(-alpha * (x + min_distance)))
-    return sigmoid_value + slope_correction
+    alpha = 24/min_distance
+    base = amplitude/(1+safe_exp(alpha*x))
+    L = 10.0
+    return base + L * np.maximum(-x, 0)
 
 #-------------------------------------------------------------------------
 def barrier_potential(contours, min_distance, barrier_amplitude):
@@ -262,13 +271,13 @@ def draw_debug_segment():
 
 #-------------------------------------------------------------------------
 def main():
-    num_X = 1
-    num_Y = 1
+    num_X = 2
+    num_Y = 2
     BARRIER_AMPLITUDE = 100.0
 
     initial_theta = np.pi / 20
-    initial_X = np.array([[0.42, -0.64]])
-    initial_Y = np.array([[0.23, -0.98]])
+    initial_X = np.array([[0.42, -0.44], [0.42, -0.64]])
+    initial_Y = np.array([[0.23, -0.98], [0.13, -0.98]])
 
     initial_vars = np.concatenate(([initial_theta],
                                     initial_X.flatten(),
@@ -288,57 +297,97 @@ def main():
     combined_grad = grad(combined_objective)
 
     # Callback that logs each iteration's parameters and draws the contour,
-    # printing objective, barrier, and combined values.
     def optimization_callback(vars):
+        pygame.event.pump()  # Allow Pygame to process window events (fixes window freezing)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
         theta = vars[0]
         X = vars[1:1+2*num_X].reshape((num_X, 2))
         Y = vars[1+2*num_X:].reshape((num_Y, 2))
         base_obj = -theta
         contours = create_contour(X, Y, theta)
-        # Compute the inequality constraint value
-        ineq_value = min(check_distances(contour, MIN_DISTANCE, include_closing_segment=True) for contour in contours)
-        print("Constraint inequality value (should be = 0 when feasible): {:.6f}".format(ineq_value))
-        # Compute barrier potential
         barrier_val = min(barrier_potential(contour, MIN_DISTANCE, BARRIER_AMPLITUDE) for contour in contours)
         combined_val = base_obj + barrier_val
-        print("Iteration {}: theta = {:.6f}, X = {}, Y = {}".format(
-            optimization_callback.iteration, theta, X, Y))
-        print("Objective: {:.6f}, Barrier: {:.6f}, Combined: {:.6f}".format(
-            base_obj, barrier_val, combined_val))
+        caption_str = f"Iteration {optimization_callback.iteration}: Objective {base_obj:.6f}, Barrier {barrier_val:.6f}, Combined {combined_val:.6f}"
+        pygame.event.post(pygame.event.Event(pygame.USEREVENT, {'caption': caption_str}))
         optimization_callback.iteration += 1
         draw_contours(contours)
         # wait_for_keypress()
-        time.sleep(0.01)  # Pause for 0.1 second
+        time.sleep(0.01)
     optimization_callback.iteration = 0
 
     # Draw initial contour and wait for keypress
     optimization_callback(initial_vars)
+    wait_for_keypress()
 
-#     result = minimize(
-#         fun=combined_objective,
-#         x0=initial_vars,
-#         jac=combined_grad,
-#         method='L-BFGS-B',
-#         callback=optimization_callback,
-#         options={'disp': True, 'eps': 1e-12, 'maxiter': 200}
-#     )
+    # Threaded solver function
+    SELECTED_SOLVER = SolverType.BASIN_HOPPING
+    def run_solver():
+        if SELECTED_SOLVER == SolverType.BASIN_HOPPING: #-----------------------------------
+            minimizer_kwargs = {
+                "method": "L-BFGS-B",
+                "jac": combined_grad,
+                "callback": optimization_callback,
+                "options": {"disp": True, "eps": 1e-12, "maxiter": 10}
+            }
+            def accept_test(f_new, x_new, f_old, x_old):
+                return f_new <= f_old  # Only accept new solution if it's better (or equal)
+            basinhopping(
+                func=combined_objective,
+                x0=initial_vars,
+                minimizer_kwargs=minimizer_kwargs,
+                niter=100,
+                stepsize=0.05,
+                disp=True,
+                accept_test=accept_test  # Prevents regression
+            )
+# NEEDS A TORCH REFACTOR OF EVERYTHING
+#         elif SELECTED_SOLVER == SolverType.TORCH_ADAM: #-----------------------------------
+#             current_vars = torch.tensor(initial_vars, requires_grad=True, dtype=torch.float32)
+#             optimizer = torch.optim.Adam([current_vars], lr=0.01)
+#             max_iter = 2000
+#             for _ in range(max_iter):
+#                 for event in pygame.event.get():
+#                     if event.type == pygame.QUIT:
+#                         pygame.quit()
+#                         sys.exit()
+#                 optimizer.zero_grad()
+#                 loss = combined_objective(current_vars)
+#                 loss.backward()
+#                 optimizer.step()
+#                 optimization_callback(current_vars.detach().numpy())
+        elif SELECTED_SOLVER == SolverType.SIMPLE_GRADIENT_DESCENT: #-----------------------------------
+            current_vars = initial_vars.copy()
+            max_iter = 2000
+            for _ in range(max_iter):
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                grad_val = combined_grad(current_vars)
+                delta = -grad_val
+                delta = np.clip(delta, -0.001, 0.001)
+                current_vars = current_vars + delta
+                optimization_callback(current_vars)
 
-    # Alternative solver: simple gradient descent with per-variable update clipping
-    current_vars = initial_vars.copy()
-    max_iter = 2000
-    for _ in range(max_iter):
+    # Run solver in a separate thread
+    solver_thread = threading.Thread(target=run_solver, daemon=True)
+    solver_thread.start()
+
+    # Keep Pygame responsive
+    running = True
+    while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-        grad_val = combined_grad(current_vars)
-        delta = -grad_val
-        delta = np.clip(delta, -0.001, 0.001)
-        current_vars = current_vars + delta
-        optimization_callback(current_vars)
+                running = False
+            elif event.type == pygame.USEREVENT:
+                pygame.display.set_caption(event.caption)
+        time.sleep(0.01)
 
-    wait_for_keypress()
     pygame.quit()
+    sys.exit()
 
 if __name__ == "__main__":
 #    draw_debug_point()
