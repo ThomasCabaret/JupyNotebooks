@@ -42,7 +42,27 @@ def ASSERT(condition, message="Assertion failed"):
         raise ValueError(message)
 
 #-------------------------------------------------------------------------
-def rotate_point(point, angle, center=(0, 0)):
+def transform(point, scale, offset_x, offset_y):
+    return int(point[0] * scale + offset_x), int(-point[1] * scale + offset_y)
+
+#-------------------------------------------------------------------------
+def inverse_transform(screen_point, scale, offset_x, offset_y):
+    return np.array([(screen_point[0] - offset_x) / scale, -(screen_point[1] - offset_y) / scale])
+
+#-------------------------------------------------------------------------
+def compute_scaling_and_offset(contours, screen_size, margin):
+    all_points = np.vstack(contours)
+    min_x, max_x = np.min(all_points[:, 0]), np.max(all_points[:, 0])
+    min_y, max_y = np.min(all_points[:, 1]), np.max(all_points[:, 1])
+    width, height = max_x - min_x, max_y - min_y
+    scale = min((screen_size[0] - 2 * margin) / max(width, 1),
+                (screen_size[1] - 2 * margin) / max(height, 1))
+    offset_x = screen_size[0] / 2 - ((max_x + min_x) / 2) * scale
+    offset_y = screen_size[1] / 2 + ((max_y + min_y) / 2) * scale
+    return scale, offset_x, offset_y
+
+#-------------------------------------------------------------------------
+def rotate_point(point, angle, center):
     c, s = np.cos(angle), np.sin(angle)
     rotation_matrix = np.array([[c, -s], [s, c]])
     return center + rotation_matrix @ (point - center)
@@ -114,151 +134,80 @@ def check_distances(points, min_distance, include_closing_segment=False):
     return np.min(np.array(violations))
 
 #-------------------------------------------------------------------------
-def scaled_sigmoid(x, amplitude, min_distance):
-    alpha = 24 / min_distance  # Ensure transition happens over MIN_DISTANCE/2
-    return amplitude / (1 + np.exp(alpha * x))
+def safe_exp(x, max_exp=500):
+    return np.exp(np.clip(x, -max_exp, max_exp))
 
 #-------------------------------------------------------------------------
-def barrier_potential(points, min_distance, barrier_amplitude):
-    g = check_distances(points, min_distance, include_closing_segment=True)
-    return scaled_sigmoid(g, barrier_amplitude, min_distance)  # Log barrier only when constraints are violated
+def scaled_sigmoid(x, amplitude, min_distance):
+    alpha = 24 / min_distance  
+    sigmoid_value = amplitude / (1 + safe_exp(alpha * x))
+    slope_correction = (amplitude * 0.1) * x / (1 + safe_exp(-alpha * (x + min_distance)))
+    return sigmoid_value + slope_correction
+
+#-------------------------------------------------------------------------
+def barrier_potential(contours, min_distance, barrier_amplitude):
+    g = min(check_distances(contour, min_distance, include_closing_segment=True) for contour in contours)
+    return scaled_sigmoid(g, barrier_amplitude, min_distance)
 
 #-------------------------------------------------------------------------
 def create_contour(X, Y, theta):
     N = np.array([0, 1])
     S = np.array([0, -1])
+    A = rotate_point(S, theta, N)
+    main_BR = np.vstack([X, A, Y])
+    main_BR_excl_A = np.vstack([X])
+    main_BR_excl_Y = np.vstack([X, A])
+    main_BR_180 = -main_BR[::-1]  # 180-degree rotation and reverse order
+    main_R = np.vstack([N, main_BR_180, main_BR, S])
+    main_L_rev = np.array([rotate_point(p, -theta, N) for p in np.vstack([main_BR_180, main_BR_excl_A])])
+    main_L = main_L_rev[::-1]
+    main_contour = np.vstack([main_R, main_L])
 
-    A = rotate_point(S, theta)
+    left_L_rev = np.array([rotate_point(p, -2.0*theta, N) for p in np.vstack([main_BR_180, main_BR_excl_Y])])
+    left_L = left_L_rev[::-1]
+    Y_teta = np.array([rotate_point(p, -theta, N) for p in Y])
+    left_contour = np.vstack([N, main_L_rev, S, Y_teta, left_L])
 
-    Z = np.vstack([X, A, Y])
-    Z_cut = np.vstack([X, A])
-    Z_prime = -Z[::-1]  # 180-degree rotation and reverse order
+    #The right piece contour is just 180 of the main one, irrelevant in the current version of the probleme
 
-    base_contour = np.vstack([N, Z_prime, Z, S])
-
-    W = np.array([rotate_point(p, -theta, N) for p in np.vstack([Z_prime, Z_cut])])
-    W = W[::-1]
-
-    final_contour = np.vstack([base_contour, W])
-
-    return final_contour
-
-#-------------------------------------------------------------------------
-# def perimeter(contour):
-#     distances = np.linalg.norm(np.diff(np.vstack([contour, contour[0]]), axis=0), axis=1)
-#     return np.sum(distances)
+    return [main_contour, left_contour]
 
 #-------------------------------------------------------------------------
-# def objective(variables, num_X, num_Y):
-#     theta = variables[0]
-#     X = variables[1:1 + 2*num_X].reshape((num_X, 2))
-#     Y = variables[1 + 2*num_X:].reshape((num_Y, 2))
-#     contour = create_contour(X, Y, theta)
-#     return -perimeter(contour)
-
-#-------------------------------------------------------------------------
-def objective_theta(variables):
-    theta = variables[0]
-    return -theta  # maximizing theta by minimizing -theta
-
-#-------------------------------------------------------------------------
-# def constraint(variables, num_X, num_Y):
-#     theta = variables[0]
-#     X = variables[1:1 + 2*num_X].reshape((num_X, 2))
-#     Y = variables[1 + 2*num_X:].reshape((num_Y, 2))
-#     contour = create_contour(X, Y, theta)
-#     return check_distances(contour, MIN_DISTANCE, include_closing_segment=True)
-
-#-------------------------------------------------------------------------
-def draw_contour(contour):
+def draw_contours(contours):
     screen.fill(BACKGROUND_COLOR)
-
-    # Compute bounding box
-    min_x = np.min(contour[:, 0])
-    max_x = np.max(contour[:, 0])
-    min_y = np.min(contour[:, 1])
-    max_y = np.max(contour[:, 1])
-
-    width = max_x - min_x
-    height = max_y - min_y
-
-    # Avoid division by zero if width or height is zero
-    if width == 0:
-        width = 1
-    if height == 0:
-        height = 1
-
-    # Compute scaling factor and offsets to fit in the screen with margins
-    scale = min((SCREEN_SIZE[0] - 2 * MARGIN) / width,
-                (SCREEN_SIZE[1] - 2 * MARGIN) / height)
-
-    offset_x = SCREEN_SIZE[0] / 2 - ((max_x + min_x) / 2) * scale
-    offset_y = SCREEN_SIZE[1] / 2 + ((max_y + min_y) / 2) * scale  # Flip Y-axis
-
-    def transform(point):
-        """Transform a point from mathematical coordinates to screen coordinates."""
-        x_screen = int(point[0] * scale + offset_x)
-        y_screen = int(-point[1] * scale + offset_y)  # Flip Y-axis
-        return (x_screen, y_screen)
-
-    # Draw grid
-    grid_color = (200, 200, 200)  # Light gray
+    scale, offset_x, offset_y = compute_scaling_and_offset(contours, SCREEN_SIZE, MARGIN)
+    all_points = np.vstack(contours)
+    min_x, max_x = np.min(all_points[:, 0]), np.max(all_points[:, 0])
+    min_y, max_y = np.min(all_points[:, 1]), np.max(all_points[:, 1])
+    grid_color = (200, 200, 200)
     for x in range(int(np.floor(min_x)), int(np.ceil(max_x)) + 1):
-        pygame.draw.line(screen, grid_color, transform((x, min_y - 1)), transform((x, max_y + 1)), 1)
+        pygame.draw.line(screen, grid_color, transform((x, min_y - 1), scale, offset_x, offset_y),
+                         transform((x, max_y + 1), scale, offset_x, offset_y), 1)
     for y in range(int(np.floor(min_y)), int(np.ceil(max_y)) + 1):
-        pygame.draw.line(screen, grid_color, transform((min_x - 1, y)), transform((max_x + 1, y)), 1)
-
-    # Draw axes
-    axis_color = (255, 255, 255)  # White
-    pygame.draw.line(screen, axis_color, transform((min_x - 1, 0)), transform((max_x + 1, 0)), 2)  # X-axis
-    pygame.draw.line(screen, axis_color, transform((0, min_y - 1)), transform((0, max_y + 1)), 2)  # Y-axis
-
-    # Transform contour points
-    transformed_points = [transform(point) for point in contour]
-
-    # Draw contour
-    pygame.draw.polygon(screen, CONTOUR_COLOR, transformed_points, width=1)
-
-    # Draw contour points and circles around them
-    for i, point in enumerate(contour):
-        color = CONTOUR_COLOR
-        if np.allclose(point, [0, 1]):  # North point (0,1)
-            color = (255, 0, 0)  # Red
-        elif np.allclose(point, [0, -1]):  # South point (0,-1)
-            color = (0, 0, 255)  # Blue
-
-        pygame.draw.circle(screen, color, transformed_points[i], POINT_RADIUS)
-
-        # Draw a circle of radius MIN_DISTANCE around each point (converted to screen scale)
-        pygame.draw.circle(screen, (255, 255, 0), transformed_points[i], int(MIN_DISTANCE * scale), 1)
-
+        pygame.draw.line(screen, grid_color, transform((min_x - 1, y), scale, offset_x, offset_y),
+                         transform((max_x + 1, y), scale, offset_x, offset_y), 1)
+    axis_color = (255, 255, 255)
+    pygame.draw.line(screen, axis_color, transform((min_x - 1, 0), scale, offset_x, offset_y),
+                     transform((max_x + 1, 0), scale, offset_x, offset_y), 2)
+    pygame.draw.line(screen, axis_color, transform((0, min_y - 1), scale, offset_x, offset_y),
+                     transform((0, max_y + 1), scale, offset_x, offset_y), 2)
+    for contour in contours:
+        transformed_points = [transform(point, scale, offset_x, offset_y) for point in contour]
+        pygame.draw.polygon(screen, CONTOUR_COLOR, transformed_points, width=1)
+        for i, point in enumerate(contour):
+            color = CONTOUR_COLOR
+            if np.allclose(point, [0, 1]):
+                color = (255, 0, 0)
+            elif np.allclose(point, [0, -1]):
+                color = (0, 0, 255)
+            pygame.draw.circle(screen, color, transformed_points[i], POINT_RADIUS)
+            pygame.draw.circle(screen, (255, 255, 0), transformed_points[i], int(MIN_DISTANCE * scale), 1)
     pygame.display.flip()
-
-    # Process pygame events to keep the window responsive
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
 
 #-------------------------------------------------------------------------
 def draw_debug_point():
-    # Assume a fixed real coordinate system of [-2, 2] for both x and y.
-    scale = (SCREEN_SIZE[0] - 2 * MARGIN) / 4.0  # 4 = width of the interval [-2,2]
-    offset_x = SCREEN_SIZE[0] / 2
-    offset_y = SCREEN_SIZE[1] / 2
-
-    def transform(point):
-        x_screen = int(point[0] * scale + offset_x)
-        y_screen = int(-point[1] * scale + offset_y)  # Invert y-axis
-        return (x_screen, y_screen)
-
-    def inverse_transform(screen_point):
-        x = (screen_point[0] - offset_x) / scale
-        y = -(screen_point[1] - offset_y) / scale
-        return np.array([x, y])
-
+    scale, offset_x, offset_y = SCREEN_SIZE[0] / 4.0, SCREEN_SIZE[0] / 2, SCREEN_SIZE[1] / 2
     font = pygame.font.SysFont("Arial", 20)
-
     running = True
     while running:
         for event in pygame.event.get():
@@ -267,50 +216,25 @@ def draw_debug_point():
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 running = False
-
         screen.fill(BACKGROUND_COLOR)
-
-        # Define the segment from (-1, 0) to (1, 0)
-        a = np.array([-1, 0])
-        b = np.array([1, 0])
-        pygame.draw.line(screen, (255, 255, 255), transform(a), transform(b), 2)
-
-        # Get the mouse position in real coordinates
-        mouse_screen = pygame.mouse.get_pos()
-        mouse_real = inverse_transform(mouse_screen)
-
-        # Draw the mouse point
-        pygame.draw.circle(screen, POINT_COLOR, transform(mouse_real), POINT_RADIUS)
-
-        # Compute the distance from the mouse to the segment
+        a, b = np.array([-1, 0]), np.array([1, 0])
+        pygame.draw.line(screen, (255, 255, 255), transform(a, scale, offset_x, offset_y), 
+                         transform(b, scale, offset_x, offset_y), 2)
+        mouse_real = inverse_transform(pygame.mouse.get_pos(), scale, offset_x, offset_y)
+        pygame.draw.circle(screen, POINT_COLOR, transform(mouse_real, scale, offset_x, offset_y), POINT_RADIUS)
         dist = distance_point_to_segment(mouse_real, a, b)
         interest = dist - MIN_DISTANCE
         f_interest = scaled_sigmoid(interest, 100.0, MIN_DISTANCE)
-        
-        # Display the mouse coordinates, the distance, (distance - MIN_DISTANCE) and f(distance - MIN_DISTANCE)
-        text_surface = font.render("Coords: ({:.4f}, {:.4f})  Dist: {:.4f}  (Dist-MIN): {:.4f}  f(Dist-MIN): {:.4f}".format(
-            mouse_real[0], mouse_real[1], dist, interest, f_interest), True, (255,255,255))
+        text_surface = font.render(
+            "Coords: ({:.4f}, {:.4f})  Dist: {:.4f}  (Dist-MIN): {:.4f}  f(Dist-MIN): {:.4f}".format(
+                mouse_real[0], mouse_real[1], dist, interest, f_interest), True, (255, 255, 255))
         screen.blit(text_surface, (10, 10))
-
         pygame.display.flip()
         clock.tick(FPS)
 
 #-------------------------------------------------------------------------
 def draw_debug_segment():
-    scale = (SCREEN_SIZE[0] - 2 * MARGIN) / 4.0  # real coordinate system: [-2, 2]
-    offset_x = SCREEN_SIZE[0] / 2
-    offset_y = SCREEN_SIZE[1] / 2
-
-    def transform(point):
-        x_screen = int(point[0] * scale + offset_x)
-        y_screen = int(-point[1] * scale + offset_y)
-        return (x_screen, y_screen)
-
-    def inverse_transform(screen_point):
-        x = (screen_point[0] - offset_x) / scale
-        y = -(screen_point[1] - offset_y) / scale
-        return np.array([x, y])
-
+    scale, offset_x, offset_y = SCREEN_SIZE[0] / 4.0, SCREEN_SIZE[0] / 2, SCREEN_SIZE[1] / 2
     font = pygame.font.SysFont("Arial", 20)
     running = True
     while running:
@@ -320,30 +244,19 @@ def draw_debug_segment():
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 running = False
-
         screen.fill(BACKGROUND_COLOR)
-
-        # Fixed segment from (-1, 0) to (1, 0)
-        seg1_start = np.array([-1, 0])
-        seg1_end = np.array([1, 0])
-        pygame.draw.line(screen, (255, 255, 255), transform(seg1_start), transform(seg1_end), 2)
-
-        # Dynamic segment: fixed point (0, 2) to mouse pointer
+        seg1_start, seg1_end = np.array([-1, 0]), np.array([1, 0])
+        pygame.draw.line(screen, (255, 255, 255), transform(seg1_start, scale, offset_x, offset_y),
+                         transform(seg1_end, scale, offset_x, offset_y), 2)
         seg2_start = np.array([0, 2])
-        mouse_screen = pygame.mouse.get_pos()
-        seg2_end = inverse_transform(mouse_screen)
-        pygame.draw.line(screen, (0, 255, 0), transform(seg2_start), transform(seg2_end), 2)
-
-        # Compute crossing distance between the two segments
+        seg2_end = inverse_transform(pygame.mouse.get_pos(), scale, offset_x, offset_y)
+        pygame.draw.line(screen, (0, 255, 0), transform(seg2_start, scale, offset_x, offset_y),
+                         transform(seg2_end, scale, offset_x, offset_y), 2)
         cross_dist = crossing_distance((seg1_start, seg1_end), (seg2_start, seg2_end))
-
-        # Draw circle at the dynamic segment's endpoint (mouse position)
-        pygame.draw.circle(screen, POINT_COLOR, transform(seg2_end), POINT_RADIUS)
-
-        # Display the real coordinates of the mouse and the crossing distance
-        text_surface = font.render("Coords: ({:.4f}, {:.4f})  Crossing: {:.4f}".format(seg2_end[0], seg2_end[1], cross_dist), True, (255, 255, 255))
+        pygame.draw.circle(screen, POINT_COLOR, transform(seg2_end, scale, offset_x, offset_y), POINT_RADIUS)
+        text_surface = font.render("Coords: ({:.4f}, {:.4f})  Crossing: {:.4f}".format(
+            seg2_end[0], seg2_end[1], cross_dist), True, (255, 255, 255))
         screen.blit(text_surface, (10, 10))
-
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -353,7 +266,7 @@ def main():
     num_Y = 1
     BARRIER_AMPLITUDE = 100.0
 
-    initial_theta = np.pi / 7
+    initial_theta = np.pi / 20
     initial_X = np.array([[0.42, -0.64]])
     initial_Y = np.array([[0.23, -0.98]])
 
@@ -361,22 +274,15 @@ def main():
                                     initial_X.flatten(),
                                     initial_Y.flatten()))
 
-    # Debug block: Check crossing distance between two non-crossing segments
-    #seg1 = (np.array([-1.0, 0.0]), np.array([1.0, 0.0]))
-    #seg2 = (np.array([0.0, 1.0]), np.array([0.0, 2.0]))
-
-    #crossing_dist = crossing_distance(seg1, seg2)
-    #print("Debug: Crossing distance between non-crossing segments:", crossing_dist)
-    #wait_for_keypress()
-
     # Combined objective: original objective (here: -theta) plus barrier potential
     def combined_objective(vars):
         theta = vars[0]
+        theta = ((theta + np.pi) % (2 * np.pi)) - np.pi
         X = vars[1:1+2*num_X].reshape((num_X, 2))
         Y = vars[1+2*num_X:].reshape((num_Y, 2))
         base_obj = -theta  # maximizing theta via minimizing -theta
-        contour = create_contour(X, Y, theta)
-        barrier_val = barrier_potential(contour, MIN_DISTANCE, BARRIER_AMPLITUDE)
+        contours = create_contour(X, Y, theta)
+        barrier_val = barrier_potential(contours, MIN_DISTANCE, BARRIER_AMPLITUDE)
         return base_obj + barrier_val
 
     combined_grad = grad(combined_objective)
@@ -388,34 +294,48 @@ def main():
         X = vars[1:1+2*num_X].reshape((num_X, 2))
         Y = vars[1+2*num_X:].reshape((num_Y, 2))
         base_obj = -theta
-        contour = create_contour(X, Y, theta)
+        contours = create_contour(X, Y, theta)
         # Compute the inequality constraint value
-        ineq_value = check_distances(contour, MIN_DISTANCE, include_closing_segment=True)
+        ineq_value = min(check_distances(contour, MIN_DISTANCE, include_closing_segment=True) for contour in contours)
         print("Constraint inequality value (should be = 0 when feasible): {:.6f}".format(ineq_value))
         # Compute barrier potential
-        barrier_val = barrier_potential(contour, MIN_DISTANCE, BARRIER_AMPLITUDE)
+        barrier_val = min(barrier_potential(contour, MIN_DISTANCE, BARRIER_AMPLITUDE) for contour in contours)
         combined_val = base_obj + barrier_val
         print("Iteration {}: theta = {:.6f}, X = {}, Y = {}".format(
             optimization_callback.iteration, theta, X, Y))
         print("Objective: {:.6f}, Barrier: {:.6f}, Combined: {:.6f}".format(
             base_obj, barrier_val, combined_val))
         optimization_callback.iteration += 1
-        draw_contour(contour)
+        draw_contours(contours)
         # wait_for_keypress()
-        time.sleep(0.1)  # Pause for 0.1 second
+        time.sleep(0.01)  # Pause for 0.1 second
     optimization_callback.iteration = 0
 
     # Draw initial contour and wait for keypress
     optimization_callback(initial_vars)
 
-    result = minimize(
-        fun=combined_objective,
-        x0=initial_vars,
-        jac=combined_grad,
-        method='L-BFGS-B',
-        callback=optimization_callback,
-        options={'disp': True, 'eps': 1e-12, 'maxiter': 200}
-    )
+#     result = minimize(
+#         fun=combined_objective,
+#         x0=initial_vars,
+#         jac=combined_grad,
+#         method='L-BFGS-B',
+#         callback=optimization_callback,
+#         options={'disp': True, 'eps': 1e-12, 'maxiter': 200}
+#     )
+
+    # Alternative solver: simple gradient descent with per-variable update clipping
+    current_vars = initial_vars.copy()
+    max_iter = 2000
+    for _ in range(max_iter):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        grad_val = combined_grad(current_vars)
+        delta = -grad_val
+        delta = np.clip(delta, -0.001, 0.001)
+        current_vars = current_vars + delta
+        optimization_callback(current_vars)
 
     wait_for_keypress()
     pygame.quit()
