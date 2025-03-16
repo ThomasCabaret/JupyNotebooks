@@ -21,7 +21,7 @@ CONTOUR_COLOR = (255, 255, 255)
 POINT_COLOR = (255, 0, 0)
 POINT_RADIUS = 3
 MARGIN = 50
-MIN_DISTANCE = 0.05
+MIN_DISTANCE = 0.01
 FPS = 30
 
 # Global numerical constants
@@ -269,6 +269,8 @@ def draw_debug_segment():
         pygame.display.flip()
         clock.tick(FPS)
 
+# Global variable to hold the current basin hopping iteration number.
+current_bh_iter = 0
 #-------------------------------------------------------------------------
 def main():
     num_X = 2
@@ -297,7 +299,7 @@ def main():
     combined_grad = grad(combined_objective)
 
     # Callback that logs each iteration's parameters and draws the contour,
-    def optimization_callback(vars):
+    def optimization_callback(vars, free_text=""):
         pygame.event.pump()  # Allow Pygame to process window events (fixes window freezing)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -310,7 +312,7 @@ def main():
         contours = create_contour(X, Y, theta)
         barrier_val = min(barrier_potential(contour, MIN_DISTANCE, BARRIER_AMPLITUDE) for contour in contours)
         combined_val = base_obj + barrier_val
-        caption_str = f"Iteration {optimization_callback.iteration}: Objective {base_obj:.6f}, Barrier {barrier_val:.6f}, Combined {combined_val:.6f}"
+        caption_str = f"{free_text} Iteration {optimization_callback.iteration}: Objective {base_obj:.6f}, Barrier {barrier_val:.6f}, Combined {combined_val:.6f}"
         pygame.event.post(pygame.event.Event(pygame.USEREVENT, {'caption': caption_str}))
         optimization_callback.iteration += 1
         draw_contours(contours)
@@ -323,17 +325,27 @@ def main():
     wait_for_keypress()
 
     # Threaded solver function
-    SELECTED_SOLVER = SolverType.BASIN_HOPPING
+    SELECTED_SOLVER = SolverType.SIMPLE_GRADIENT_DESCENT
     def run_solver():
-        if SELECTED_SOLVER == SolverType.BASIN_HOPPING: #-----------------------------------
+        if SELECTED_SOLVER == SolverType.BASIN_HOPPING:  #-----------------------------------
+            def local_callback(xk):
+                # This callback is called by the local L-BFGS-B minimizer within basin hopping.
+                # It now accepts only one argument (xk) and uses the global current_bh_iter
+                # to prepend free text indicating the current basin hopping iteration.
+                optimization_callback(xk, free_text=f"BASEHOPPING (iteration {current_bh_iter}) ")
             minimizer_kwargs = {
                 "method": "L-BFGS-B",
                 "jac": combined_grad,
-                "callback": optimization_callback,
+                "callback": local_callback,  # Use the local callback that expects one argument.
                 "options": {"disp": True, "eps": 1e-12, "maxiter": 10}
             }
-            def accept_test(f_new, x_new, f_old, x_old):
-                return f_new <= f_old  # Only accept new solution if it's better (or equal)
+            def bh_callback(x, f, accept):
+                global current_bh_iter
+                current_bh_iter += 1
+                # This callback is called at each basin hopping iteration.
+                # It injects free text with the basin hopping iteration info,
+                # and then calls the optimization_callback to display it.
+                optimization_callback(x, free_text=f"BASEHOPPING (iteration {current_bh_iter}, global: f: {f:.6f}, accepted: {accept}) ")
             basinhopping(
                 func=combined_objective,
                 x0=initial_vars,
@@ -341,7 +353,7 @@ def main():
                 niter=100,
                 stepsize=0.05,
                 disp=True,
-                accept_test=accept_test  # Prevents regression
+                callback=bh_callback
             )
 # NEEDS A TORCH REFACTOR OF EVERYTHING
 #         elif SELECTED_SOLVER == SolverType.TORCH_ADAM: #-----------------------------------
@@ -357,10 +369,13 @@ def main():
 #                 loss = combined_objective(current_vars)
 #                 loss.backward()
 #                 optimizer.step()
-#                 optimization_callback(current_vars.detach().numpy())
-        elif SELECTED_SOLVER == SolverType.SIMPLE_GRADIENT_DESCENT: #-----------------------------------
+        #                 optimization_callback(current_vars.detach().numpy())
+        elif SELECTED_SOLVER == SolverType.SIMPLE_GRADIENT_DESCENT:  # -----------------------------------
             current_vars = initial_vars.copy()
+            step = 0.02
             max_iter = 2000
+            obj_history = []
+            prev_avg = None
             for _ in range(max_iter):
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -368,9 +383,34 @@ def main():
                         sys.exit()
                 grad_val = combined_grad(current_vars)
                 delta = -grad_val
-                delta = np.clip(delta, -0.001, 0.001)
+                # Clip the updates:
+                # For the angle (theta), a change dtheta results in a point movement of ~2*|dtheta|,
+                # so we clip delta[0] to +/-(step/2).
+                delta[0] = np.clip(delta[0], -step / 2, step / 2)
+                # For the remaining point coordinates, clip directly to +/-step.
+                delta[1:] = np.clip(delta[1:], -step, step)
+                # Add small noise after clipping (noise magnitude is of order step/10)
+                noise = np.random.uniform(-step/10, step/10, delta.shape)
+                delta = delta + noise
                 current_vars = current_vars + delta
-                optimization_callback(current_vars)
+                # Record the current combined objective value.
+                current_obj = combined_objective(current_vars)
+                obj_history.append(current_obj)
+                # Every 4 iterations, compare the average of the last 4 objective values to the previous block's average.
+                if len(obj_history) == 4:
+                    avg_obj = np.mean(obj_history)
+                    if prev_avg is not None:
+                        # If the new average has not improved (i.e. decreased) by at least 1% compared to the previous block,
+                        # then reduce the step size by half.
+                        if avg_obj > prev_avg * 0.99:
+                            step /= 2
+                    prev_avg = avg_obj
+                    obj_history = []
+                free_text = f"SMART_GRADIENT_DESCENT (step: {step:.6f}"
+                if prev_avg is not None:
+                    free_text += f", last avg: {prev_avg:.6f}"
+                free_text += ")"
+                optimization_callback(current_vars, free_text=free_text)
 
     # Run solver in a separate thread
     solver_thread = threading.Thread(target=run_solver, daemon=True)
