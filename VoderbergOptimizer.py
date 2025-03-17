@@ -15,7 +15,7 @@ class SolverType(enum.Enum):
     SIMPLE_GRADIENT_DESCENT = 3
 
 # Constants
-SCREEN_SIZE = (800, 800)
+SCREEN_SIZE = (1000, 800)
 BACKGROUND_COLOR = (30, 30, 30)
 CONTOUR_COLOR = (255, 255, 255)
 POINT_COLOR = (255, 0, 0)
@@ -150,7 +150,7 @@ def safe_exp(x, max_exp=500):
 def scaled_sigmoid(x, amplitude, min_distance):
     alpha = 24/min_distance
     base = amplitude/(1+safe_exp(alpha*x))
-    L = 10.0
+    L = 1000.0
     return base + L * np.maximum(-x, 0)
 
 #-------------------------------------------------------------------------
@@ -310,7 +310,7 @@ def main():
         Y = vars[1+2*num_X:].reshape((num_Y, 2))
         base_obj = -theta
         contours = create_contour(X, Y, theta)
-        barrier_val = min(barrier_potential(contour, MIN_DISTANCE, BARRIER_AMPLITUDE) for contour in contours)
+        barrier_val = barrier_potential(contours, MIN_DISTANCE, BARRIER_AMPLITUDE)
         combined_val = base_obj + barrier_val
         caption_str = f"{free_text} Iteration {optimization_callback.iteration}: Objective {base_obj:.6f}, Barrier {barrier_val:.6f}, Combined {combined_val:.6f}"
         pygame.event.post(pygame.event.Event(pygame.USEREVENT, {'caption': caption_str}))
