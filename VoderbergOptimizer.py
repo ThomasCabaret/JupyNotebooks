@@ -23,7 +23,7 @@ CONTOUR_COLOR = (255, 255, 255)
 POINT_COLOR = (255, 0, 0)
 POINT_RADIUS = 3
 MARGIN = 50
-MIN_DISTANCE = 0.01
+MIN_DISTANCE = 0.02
 FPS = 30
 
 # Global numerical constants
@@ -162,6 +162,41 @@ def check_distances(points, min_distance, include_closing_segment=False):
     return np.min(np.array(violations))
 
 #-------------------------------------------------------------------------
+def check_angles(points, min_angle_degrees, include_closing_segment=False):
+    pts = np.array(points)
+    n = pts.shape[0]
+    min_angle_radians = np.deg2rad(min_angle_degrees)
+    violations = []
+    # Check interior vertices
+    for i in range(1, n - 1):
+        v1 = pts[i - 1] - pts[i]
+        v2 = pts[i + 1] - pts[i]
+        norm1 = np.linalg.norm(v1)
+        norm2 = np.linalg.norm(v2)
+        if norm1 == 0 or norm2 == 0:
+            continue
+        angle = np.arccos(np.clip(np.dot(v1, v2) / (norm1 * norm2), -1.0, 1.0))
+        violations.append(angle - min_angle_radians)
+    if include_closing_segment and n >= 3:
+        # Angle at the last vertex (between the segment from second-last to last and last to first)
+        v1 = pts[-2] - pts[-1]
+        v2 = pts[0] - pts[-1]
+        norm1 = np.linalg.norm(v1)
+        norm2 = np.linalg.norm(v2)
+        if norm1 != 0 and norm2 != 0:
+            angle = np.arccos(np.clip(np.dot(v1, v2) / (norm1 * norm2), -1.0, 1.0))
+            violations.append(angle - min_angle_radians)
+        # Angle at the first vertex (between the segment from last to first and first to second)
+        v1 = pts[-1] - pts[0]
+        v2 = pts[1] - pts[0]
+        norm1 = np.linalg.norm(v1)
+        norm2 = np.linalg.norm(v2)
+        if norm1 != 0 and norm2 != 0:
+            angle = np.arccos(np.clip(np.dot(v1, v2) / (norm1 * norm2), -1.0, 1.0))
+            violations.append(angle - min_angle_radians)
+    return np.min(np.array(violations)) if violations else np.inf
+
+#-------------------------------------------------------------------------
 def safe_exp(x, max_exp=500):
     return np.exp(np.clip(x, -max_exp, max_exp))
 
@@ -174,8 +209,9 @@ def scaled_sigmoid(x, amplitude, min_distance):
 
 #-------------------------------------------------------------------------
 def barrier_potential(contours, min_distance, barrier_amplitude):
-    g = min(check_distances(contour, min_distance, include_closing_segment=True) for contour in contours)
-    return scaled_sigmoid(g, barrier_amplitude, min_distance)
+    gc = min(check_distances(contour, min_distance, include_closing_segment=True) for contour in contours)
+    ga = check_angles(contours[0], 45, include_closing_segment=True)
+    return scaled_sigmoid(min(gc,ga), barrier_amplitude, min_distance)
 
 #-------------------------------------------------------------------------
 # Voderberg
@@ -371,6 +407,121 @@ def load_vars_with_metadata(filepath):
     return np.array(vars_list, dtype=np.float64)
 
 #-------------------------------------------------------------------------
+def save_contour_as_svg(contour, filename="last_contour.svg"):
+    pts = np.array(contour)
+    min_x, max_x = np.min(pts[:,0]), np.max(pts[:,0])
+    min_y, max_y = np.min(pts[:,1]), np.max(pts[:,1])
+    padding = 10
+    width = max_x - min_x
+    height = max_y - min_y
+    viewbox = f"{min_x - padding} {-(max_y + padding)} {width + 2*padding} {height + 2*padding}"
+    svg_lines = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{viewbox}">']
+    path_data = " ".join(f"L {x},{-y}" for x, y in pts[1:])
+    path_data = f"M {pts[0,0]},{-pts[0,1]} {path_data} Z"
+    svg_lines.append(f'  <path d="{path_data}" fill="black" stroke="none" />')
+    svg_lines.append("</svg>")
+    with open(filename, "w") as f:
+        f.write("\n".join(svg_lines))
+
+#-------------------------------------------------------------------------
+def triangulate_contour(contour):
+    pts = np.array(contour, dtype=np.float64)
+    n = len(pts)
+    if n < 3:
+        return []
+    def area(poly):
+        return 0.5 * np.sum(poly[:, 0] * np.roll(poly[:, 1], -1) - np.roll(poly[:, 0], -1) * poly[:, 1])
+    def is_convex(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]) > 0
+    def point_in_triangle(p, a, b, c):
+        v0 = c - a
+        v1 = b - a
+        v2 = p - a
+        dot00 = np.dot(v0, v0)
+        dot01 = np.dot(v0, v1)
+        dot02 = np.dot(v0, v2)
+        dot11 = np.dot(v1, v1)
+        dot12 = np.dot(v1, v2)
+        denom = dot00 * dot11 - dot01 * dot01
+        if denom == 0:
+            return False
+        u = (dot11 * dot02 - dot01 * dot12) / denom
+        v = (dot00 * dot12 - dot01 * dot02) / denom
+        return (u >= 0) and (v >= 0) and (u + v <= 1)
+    indices = list(range(n))
+    if area(pts) < 0:
+        indices.reverse()
+    triangles = []
+    while len(indices) > 3:
+        ear_found = False
+        for i in range(len(indices)):
+            i0 = indices[i - 1]
+            i1 = indices[i]
+            i2 = indices[(i + 1) % len(indices)]
+            a, b, c = pts[i0], pts[i1], pts[i2]
+            if not is_convex(a, b, c):
+                continue
+            ear = True
+            for j in indices:
+                if j in (i0, i1, i2):
+                    continue
+                if point_in_triangle(pts[j], a, b, c):
+                    ear = False
+                    break
+            if ear:
+                triangles.append((i0, i1, i2))
+                indices.pop(i)
+                ear_found = True
+                break
+        if not ear_found:
+            break
+    if len(indices) == 3:
+        triangles.append((indices[0], indices[1], indices[2]))
+    return triangles
+
+#-------------------------------------------------------------------------
+def save_extruded_contour_as_stl(contour, thickness=0.1, filename="last-contour.stl"):
+    import numpy as np, struct
+    contour = np.array(contour, dtype=np.float32)
+    n = len(contour)
+    if n < 3:
+        raise ValueError("Contour must have at least 3 points")
+    tri_indices = triangulate_contour(contour)  # returns list of (i,j,k) indexing contour
+    top = np.hstack([contour, np.full((n,1), thickness, dtype=np.float32)])
+    bottom = np.hstack([contour, np.zeros((n,1), dtype=np.float32)])
+    triangles = []
+    # Top face (normal +Z)
+    for i, j, k in tri_indices:
+        triangles.append((np.array([0,0,1], dtype=np.float32), top[i], top[j], top[k]))
+    # Bottom face (normal -Z), reversed winding
+    for i, j, k in tri_indices:
+        triangles.append((np.array([0,0,-1], dtype=np.float32), bottom[k], bottom[j], bottom[i]))
+    # Side faces
+    for i in range(n):
+        i_next = (i + 1) % n
+        p0 = bottom[i]
+        p1 = bottom[i_next]
+        p2 = top[i_next]
+        p3 = top[i]
+        normal = np.cross(p1 - p0, p3 - p0)
+        norm = np.linalg.norm(normal)
+        if norm != 0:
+            normal /= norm
+        else:
+            normal = np.array([0,0,0], dtype=np.float32)
+        triangles.append((normal, p0, p1, p2))
+        triangles.append((normal, p0, p2, p3))
+    with open(filename, "wb") as f:
+        f.write(b"Generated by save_extruded_contour_as_stl".ljust(80, b" "))
+        f.write(struct.pack("<I", len(triangles)))
+        for normal, v1, v2, v3 in triangles:
+            f.write(struct.pack("<3f", *normal))
+            f.write(struct.pack("<3f", *v1))
+            f.write(struct.pack("<3f", *v2))
+            f.write(struct.pack("<3f", *v3))
+            f.write(struct.pack("<H", 0))
+
+#-------------------------------------------------------------------------
 def acquisition_mode(background_image_path):
     aspect = SCREEN_SIZE[0] / SCREEN_SIZE[1]
     true_h = 3.0
@@ -429,9 +580,14 @@ def acquisition_mode(background_image_path):
 
 # Global variable to hold the current basin hopping iteration number.
 current_bh_iter = 0
+BASE_OBJ = 0.0
+CONTOURS = None
+BARRIER_VAL = 0.0
 #-------------------------------------------------------------------------
 def main():
+    global CONTOURS
     init_file = "voderberg_srn2_vars.init"
+    init_file = "voderberg_srn2_angles45_contact_optimV1.init"
     if os.path.isfile(init_file):
         initial_srn2_vars = load_vars_with_metadata(init_file)
         theta = initial_srn2_vars[0]
@@ -463,51 +619,45 @@ def main():
             B
         ))
         auto_save(initial_srn2_vars)
-    srn2_contours = create_contour_srn2(theta, X, P, Q, Y, B)
-    draw_contours(srn2_contours)
+    CONTOURS = create_contour_srn2(theta, X, P, Q, Y, B)
+    draw_contours(CONTOURS)
     print("Points loaded or set")
+    save_contour_as_svg(CONTOURS[0])
+    save_extruded_contour_as_stl(CONTOURS[0])
     wait_for_keypress()
 
     BARRIER_AMPLITUDE = 100.0
 
     # Combined objective: original objective (here: -theta) plus barrier potential
     def combined_objective_srn2(vars):
-        theta = vars[0]
-        theta = ((theta + np.pi) % (2 * np.pi)) - np.pi
+        global BASE_OBJ, CONTOURS, BARRIER_VAL
+        theta = ((vars[0] + np.pi) % (2 * np.pi)) - np.pi
         X = vars[1:15].reshape((7,2))
         P = vars[15:17]
         Q = vars[17:19]
         Y = vars[19:25].reshape((3,2))
         B = vars[25:27]
-        base_obj = -contact_length(theta, P, Q, B)  # maximizing via minimizing -obj
-        contours = create_contour_srn2(theta, X, P, Q, Y, B)
-        barrier_val = barrier_potential(contours, MIN_DISTANCE, BARRIER_AMPLITUDE)
-        return base_obj + barrier_val
+        BASE_OBJ = -contact_length(theta, P, Q, B)
+        CONTOURS = create_contour_srn2(theta, X, P, Q, Y, B)
+        BARRIER_VAL = barrier_potential(CONTOURS, MIN_DISTANCE, BARRIER_AMPLITUDE)
+        return BASE_OBJ + BARRIER_VAL
 
     combined_grad_srn2 = grad(combined_objective_srn2)
 
     # Callback that logs each iteration's parameters and draws the contour,
     def optimization_callback_srn2(vars, free_text=""):
+        global BASE_OBJ, CONTOURS, BARRIER_VAL
         pygame.event.pump()  # Allow Pygame to process window events (fixes window freezing)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
-        theta = vars[0]
-        X = vars[1:15].reshape((7,2))
-        P = vars[15:17]
-        Q = vars[17:19]
-        Y = vars[19:25].reshape((3,2))
-        B = vars[25:27]
-        base_obj = -theta
-        contours = create_contour_srn2(theta, X, P, Q, Y, B)
-        barrier_val = barrier_potential(contours, MIN_DISTANCE, BARRIER_AMPLITUDE)
-        combined_val = base_obj + barrier_val
-        caption_str = f"{free_text} Iteration {optimization_callback_srn2.iteration}: Objective {base_obj:.6f}, Barrier {barrier_val:.6f}, Combined {combined_val:.6f}"
+        combined_val = BASE_OBJ + BARRIER_VAL
+        caption_str = f"{free_text} Iteration {optimization_callback_srn2.iteration}: Objective {BASE_OBJ:.6f}, Barrier {BARRIER_VAL:.6f}, Combined {combined_val:.6f}"
         pygame.event.post(pygame.event.Event(pygame.USEREVENT, {'caption': caption_str}))
         optimization_callback_srn2.iteration += 1
-        draw_contours(contours)
+        draw_contours(CONTOURS)
         # wait_for_keypress()
-        auto_save(vars, base_obj, barrier_val, combined_val, optimization_callback_srn2.iteration)
+        auto_save(vars, BASE_OBJ, BARRIER_VAL, combined_val, optimization_callback_srn2.iteration)
         time.sleep(0.01)
     optimization_callback_srn2.iteration = 0
 
@@ -613,46 +763,37 @@ def main():
         #                 optimization_callback(current_vars.detach().numpy())
         if SELECTED_SOLVER == SolverType.SIMPLE_GRADIENT_DESCENT:  # -----------------------------------
             current_vars = initial_srn2_vars.copy()
-            step = 0.002
+            step = 0.02
             max_iter = 2000
-            obj_history = []
-            prev_avg = None
             for _ in range(max_iter):
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
-                        pygame.quit()
-                        sys.exit()
+                        pygame.quit(); sys.exit()
                 grad_val = combined_grad_srn2(current_vars)
                 delta = -grad_val
                 # Clip the updates:
                 # For the angle (theta), a change dtheta results in a point movement of ~2*|dtheta|,
                 # so we clip delta[0] to +/-(step/2).
-                delta[0] = np.clip(delta[0], -step / 2, step / 2)
+                delta[0] = np.clip(delta[0], -step/2, step/2)
                 # For the remaining point coordinates, clip directly to +/-step.
                 delta[1:] = np.clip(delta[1:], -step, step)
                 # Add small noise after clipping (noise magnitude is of order step/10)
                 noise = np.random.uniform(-step/10, step/10, delta.shape)
-                delta = delta + noise
-                current_vars = current_vars + delta
-                # Record the current combined objective value.
-                current_obj = combined_objective_srn2(current_vars)
-                obj_history.append(current_obj)
-                # Every 4 iterations, compare the average of the last 4 objective values to the previous block's average.
-                if len(obj_history) == 4:
-                    avg_obj = np.mean(obj_history)
-                    if prev_avg is not None:
-                        # If the new average has not improved (i.e. decreased) by at least 1% compared to the previous block,
-                        # then reduce the step size by half.
-                        if avg_obj > prev_avg * 0.99:
-                            step /= 2
-                    prev_avg = avg_obj
-                    obj_history = []
-                free_text = f"SMART_GRADIENT_DESCENT (step: {step:.6f}"
-                if prev_avg is not None:
-                    free_text += f", last avg: {prev_avg:.6f}"
-                free_text += ")"
+                delta += noise
+                previous_vars = current_vars.copy()
+                current_vars += delta
+                combined_objective_srn2(current_vars)
+                fallback_flag = False
+                if BARRIER_VAL > BARRIER_AMPLITUDE/2:
+                    current_vars = previous_vars
+                    step /= 2
+                    fallback_flag = True
+                    continue
+#                 if fallback_flag:
+#                     free_text = f"SMART_GRADIENT_DESCENT (step: {step:.6f}, FALLBACKED)"
+#                 else:
+                free_text = f"SMART_GRADIENT_DESCENT (step: {step:.6f})"
                 optimization_callback_srn2(current_vars, free_text=free_text)
-
     # Run solver in a separate thread
     solver_thread = threading.Thread(target=run_solver, daemon=True)
     solver_thread.start()
