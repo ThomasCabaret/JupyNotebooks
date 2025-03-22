@@ -1,4 +1,6 @@
 import sys
+import os
+from datetime import datetime
 import time
 from autograd import grad
 import autograd.numpy as np
@@ -223,10 +225,10 @@ def create_contour_srn2(X, Y, theta):
     main_L_rev = main_L[::-1]
     main_contour = np.vstack([N, main_R, S, main_L_rev])
 
-    main_L_for_partial_LL = np.vstack(Pm_180, N, main_L, S])
-    main_LL_partial = # TODO rotation d'un certain centre + une translation
+    main_L_for_partial_LL = np.vstack([Pm_180, N, main_L, S])
+    main_LL_partial = main_L_for_partial_LL # TODO rotation d'un certain centre + une translation
     main_LL_partial_rev = main_LL_partial[::-1]
-    main_R_post_A_LL_transformed = # TODO rotation d'un certain centre + une translation
+    main_R_post_A_LL_transformed = main_R_post_A # TODO rotation d'un certain centre + une translation
     left_countour = np.vstack([N, main_L, S, main_R_post_A_LL_transformed, main_LL_partial_rev])
 
     return [main_contour, left_contour]
@@ -331,6 +333,21 @@ def save_vars_with_metadata(filepath, vars_array, metadata=None):
         f.write("# VARS_END\n")
 
 #-------------------------------------------------------------------------
+def auto_save(vars_array, base_obj, barrier_val, combined_val, iteration):
+    dirname = "voderberg_optimisation_data"
+    os.makedirs(dirname, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+    filename = f"{timestamp}_iter{iteration:04d}.txt"
+    path = os.path.join(dirname, filename)
+    metadata = {
+        "objective": f"{base_obj:.6f}",
+        "barrier": f"{barrier_val:.6f}",
+        "combined": f"{combined_val:.6f}",
+        "timestamp": datetime.now().isoformat(timespec='seconds')
+    }
+    save_vars_with_metadata(path, vars_array, metadata)
+
+#-------------------------------------------------------------------------
 def load_vars_with_metadata(filepath):
     vars_list = []
     reading_vars = False
@@ -358,18 +375,15 @@ def acquisition_mode(background_image_path):
     img_width, img_height = bg_img.get_size()
     px_w = int(true_w * scale)
     px_h = int(true_h * scale)
-    img_aspect = img_width / img_height
-    target_aspect = px_w / px_h
-    if img_aspect > target_aspect:
-        new_w = px_w
-        new_h = int(px_w / img_aspect)
-    else:
-        new_h = px_h
-        new_w = int(px_h * img_aspect)
+    rect_x = offset_x - (true_w/2) * scale
+    rect_y = offset_y - 1.5 * scale
+    scale_factor = min(px_w / img_width, px_h / img_height)
+    new_w = int(img_width * scale_factor)
+    new_h = int(img_height * scale_factor)
     bg_img = pygame.transform.smoothscale(bg_img, (new_w, new_h))
     bg_surf = pygame.Surface(SCREEN_SIZE, flags=pygame.SRCALPHA)
-    bg_offset_x = offset_x + (px_w - new_w) // 2
-    bg_offset_y = offset_y - (px_h - new_h) // 2
+    bg_offset_x = rect_x + (px_w - new_w) // 2
+    bg_offset_y = rect_y + (px_h - new_h) // 2
     bg_surf.blit(bg_img, (bg_offset_x, bg_offset_y))
     bg_surf.set_alpha(128)
     points = []
@@ -410,6 +424,7 @@ def acquisition_mode(background_image_path):
 current_bh_iter = 0
 #-------------------------------------------------------------------------
 def main():
+    acquisition_mode("./VoderbergSRN2Patron.png")
     num_X = 2
     num_Y = 2
     BARRIER_AMPLITUDE = 100.0
@@ -454,6 +469,7 @@ def main():
         optimization_callback.iteration += 1
         draw_contours(contours)
         # wait_for_keypress()
+        auto_save(vars, base_obj, barrier_val, combined_val, optimization_callback.iteration)
         time.sleep(0.01)
     optimization_callback.iteration = 0
 
