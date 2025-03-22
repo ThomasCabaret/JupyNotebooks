@@ -59,6 +59,23 @@ def inverse_transform(screen_point, scale, offset_x, offset_y):
     return np.array([(screen_point[0] - offset_x) / scale, -(screen_point[1] - offset_y) / scale])
 
 #-------------------------------------------------------------------------
+def compute_similarity_transform(A, B, P, Q):
+    v_source = B - A; v_dest = Q - P; scale = np.linalg.norm(v_dest) / np.linalg.norm(v_source)
+    angle = np.arctan2(v_dest[1], v_dest[0]) - np.arctan2(v_source[1], v_source[0])
+    cos_a = np.cos(angle); sin_a = np.sin(angle)
+    R = np.array([[cos_a, -sin_a],[sin_a, cos_a]])
+    t = P - scale * R.dot(A)
+    T = np.array([[scale * cos_a, -scale * sin_a, t[0]],[scale * sin_a, scale * cos_a, t[1]],[0,0,1]])
+    return T
+
+#-------------------------------------------------------------------------
+def apply_transform(T, points):
+    points = np.atleast_2d(points); ones = np.ones((points.shape[0], 1))
+    ph = np.hstack([points, ones])
+    transformed = (T @ ph.T).T
+    return transformed[:, :2]
+
+#-------------------------------------------------------------------------
 def compute_scaling_and_offset(contours, screen_size, margin):
     all_points = np.vstack(contours)
     min_x, max_x = np.min(all_points[:, 0]), np.max(all_points[:, 0])
@@ -159,6 +176,7 @@ def barrier_potential(contours, min_distance, barrier_amplitude):
     return scaled_sigmoid(g, barrier_amplitude, min_distance)
 
 #-------------------------------------------------------------------------
+# Voderberg
 def create_contour(X, Y, theta):
     N = np.array([0, 1])
     S = np.array([0, -1])
@@ -178,6 +196,38 @@ def create_contour(X, Y, theta):
     left_contour = np.vstack([N, main_L_rev, S, Y_teta, left_L])
 
     #The right piece contour is just 180 of the main one, irrelevant in the current version of the probleme
+
+    return [main_contour, left_contour]
+
+#-------------------------------------------------------------------------
+# Improved Voderberg with surrounding number 2
+def create_contour_srn2(X, Y, theta):
+    N = np.array([0, 1])
+    S = np.array([0, -1])
+    A = rotate_point(S, theta, N) + (S - B)
+    Pm = P + (B - A) # P image by A B translation
+    Qm = Q + (B - A)
+
+    Qm_180 = -Qm[::-1]  # 180-degree rotation and reverse order
+    Y_180 = -Y[::-1]
+    Q_180 = -Q[::-1]
+    A_180 = -A[::-1]
+    P_180 = -P[::-1]
+    X_180 = -X[::-1]
+    Pm_180 = -Pm[::-1]
+    B_180 = -B[::-1]
+    main_R_for_L = np.vstack([Qm_180, Y_180, Q_180, A_180, P_180, X_180, X, P])
+    main_R_post_A = np.vstack([Q, Y, Qm, B, Pm])
+    main_R = np.vstack([Pm_180, B_180, main_R_for_L, A, main_R_post_A])
+    main_L = np.array([rotate_point(p, -theta, B_180) + (N - B_180) for p in main_R_for_L])
+    main_L_rev = main_L[::-1]
+    main_contour = np.vstack([N, main_R, S, main_L_rev])
+
+    main_L_for_partial_LL = np.vstack(Pm_180, N, main_L, S])
+    main_LL_partial = # TODO rotation d'un certain centre + une translation
+    main_LL_partial_rev = main_LL_partial[::-1]
+    main_R_post_A_LL_transformed = # TODO rotation d'un certain centre + une translation
+    left_countour = np.vstack([N, main_L, S, main_R_post_A_LL_transformed, main_LL_partial_rev])
 
     return [main_contour, left_contour]
 
@@ -268,6 +318,93 @@ def draw_debug_segment():
         screen.blit(text_surface, (10, 10))
         pygame.display.flip()
         clock.tick(FPS)
+
+#-------------------------------------------------------------------------
+def save_vars_with_metadata(filepath, vars_array, metadata=None):
+    with open(filepath, 'w') as f:
+        if metadata is not None:
+            for key, value in metadata.items():
+                f.write(f"# {key}: {value}\n")
+        f.write("# VARS_START\n")
+        for i, val in enumerate(vars_array):
+            f.write(f"{i}: {val:.17g}\n")
+        f.write("# VARS_END\n")
+
+#-------------------------------------------------------------------------
+def load_vars_with_metadata(filepath):
+    vars_list = []
+    reading_vars = False
+    with open(filepath, 'r') as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("# VARS_START"):
+                reading_vars = True
+            elif line.startswith("# VARS_END"):
+                reading_vars = False
+            elif reading_vars:
+                _, val = line.split(":", 1)
+                vars_list.append(float(val.strip()))
+    return np.array(vars_list, dtype=np.float64)
+
+#-------------------------------------------------------------------------
+def acquisition_mode(background_image_path):
+    aspect = SCREEN_SIZE[0] / SCREEN_SIZE[1]
+    true_h = 3.0
+    true_w = true_h * aspect
+    visible_zone = np.array([[-true_w/2, -1.5],[true_w/2, 1.5]])
+    all_points = visible_zone.reshape((-1,2))
+    scale, offset_x, offset_y = compute_scaling_and_offset([all_points], SCREEN_SIZE, MARGIN)
+    bg_img = pygame.image.load(background_image_path).convert_alpha()
+    img_width, img_height = bg_img.get_size()
+    px_w = int(true_w * scale)
+    px_h = int(true_h * scale)
+    img_aspect = img_width / img_height
+    target_aspect = px_w / px_h
+    if img_aspect > target_aspect:
+        new_w = px_w
+        new_h = int(px_w / img_aspect)
+    else:
+        new_h = px_h
+        new_w = int(px_h * img_aspect)
+    bg_img = pygame.transform.smoothscale(bg_img, (new_w, new_h))
+    bg_surf = pygame.Surface(SCREEN_SIZE, flags=pygame.SRCALPHA)
+    bg_offset_x = offset_x + (px_w - new_w) // 2
+    bg_offset_y = offset_y - (px_h - new_h) // 2
+    bg_surf.blit(bg_img, (bg_offset_x, bg_offset_y))
+    bg_surf.set_alpha(128)
+    points = []
+    acquiring = True
+    while acquiring:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    acquiring = False
+                    break
+                elif event.key == pygame.K_z and (event.mod & pygame.KMOD_CTRL):
+                    if points:
+                        points.pop()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                true_point = inverse_transform(event.pos, scale, offset_x, offset_y)
+                points.append(true_point)
+        screen.fill(BACKGROUND_COLOR)
+        screen.blit(bg_surf, (0,0))
+        if points:
+            if len(points) > 1:
+                pygame.draw.lines(screen, (255,255,255), False, [transform(pt, scale, offset_x, offset_y) for pt in points], 2)
+            for pt in points:
+                pygame.draw.circle(screen, (255,0,0), transform(pt, scale, offset_x, offset_y), POINT_RADIUS)
+        pygame.display.flip()
+        pygame.time.wait(10)
+    if len(points) < 2:
+        return np.array([], dtype=np.float64)
+    A = points[0]
+    B = points[-1]
+    T = compute_similarity_transform(A, B, np.array([0,1]), np.array([0,-1]))
+    transformed_points = apply_transform(T, np.array(points))
+    return transformed_points[1:-1]
 
 # Global variable to hold the current basin hopping iteration number.
 current_bh_iter = 0
