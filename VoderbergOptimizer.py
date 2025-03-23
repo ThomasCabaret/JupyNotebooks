@@ -23,7 +23,7 @@ CONTOUR_COLOR = (255, 255, 255)
 POINT_COLOR = (255, 0, 0)
 POINT_RADIUS = 3
 MARGIN = 50
-MIN_DISTANCE = 0.02
+MIN_DISTANCE = 0.005
 FPS = 30
 
 # Global numerical constants
@@ -243,16 +243,18 @@ def create_contour_srn2(theta, X, P, Q, Y, B):
     N = np.array([0, 1])
     S = np.array([0, -1])
     A = rotate_point(S, theta, N) + (S - B)
-    Pm = P + (B - A) # P image by A B translation
+    Pm = P + (B - A) # p in P image by A B translation
     Qm = Q + (B - A)
+    Pm = Pm[::-1]
+    Qm = Qm[::-1]
 
-    Qm_180 = -Qm  # 180-degree rotation and reverse order
+    Qm_180 = -Qm[::-1]  # 180-degree rotation and reverse order
     Y_180 = -Y[::-1]
-    Q_180 = -Q
+    Q_180 = -Q[::-1]
     A_180 = -A
-    P_180 = -P
+    P_180 = -P[::-1]
     X_180 = -X[::-1]
-    Pm_180 = -Pm
+    Pm_180 = -Pm[::-1]
     B_180 = -B
     main_R_for_L = np.vstack([Qm_180, Y_180, Q_180, A_180, P_180, X_180, X, P])
     main_R_post_A = np.vstack([Q, Y, Qm, B, Pm])
@@ -261,20 +263,23 @@ def create_contour_srn2(theta, X, P, Q, Y, B):
     main_L_rev = main_L[::-1]
     main_contour = np.vstack([N, main_R, S, main_L_rev])
 
-    main_L_for_partial_LL = np.vstack([Pm_180, N, main_L, S])
+    main_L_for_partial_LL = np.vstack([Pm_180[::-1], N, main_L, S])
     main_LL_partial = np.array([rotate_point(p, -theta, B_180) + (N - B_180) for p in main_L_for_partial_LL])
     main_LL_partial_rev = main_LL_partial[::-1]
     main_R_post_A_LL_transformed = np.array([rotate_point(p, -theta, B_180) + (N - B_180) for p in main_R_post_A])
     left_contour = np.vstack([N, main_L, S, main_R_post_A_LL_transformed, main_LL_partial_rev])
 
-    return [main_contour, left_contour]
+    #print("main_contour:", main_contour.size)
+    return [main_contour, main_contour]
 
 #-------------------------------------------------------------------------
 def contact_length(theta, P, Q, B):
-    N = np.array([0,1])
-    S = np.array([0,-1])
+    N = np.array([0, 1])
+    S = np.array([0, -1])
     A = rotate_point(S, theta, N) + (S - B)
-    return np.linalg.norm(P - A) + np.linalg.norm(A - Q)
+    dP = sum(np.linalg.norm(P[i+1] - P[i]) for i in range(len(P)-1))
+    dQ = sum(np.linalg.norm(Q[i+1] - Q[i]) for i in range(len(Q)-1))
+    return dP + np.linalg.norm(P[-1] - A) + np.linalg.norm(A - Q[0]) + dQ
 
 #-------------------------------------------------------------------------
 def draw_contours(contours):
@@ -586,24 +591,24 @@ BARRIER_VAL = 0.0
 #-------------------------------------------------------------------------
 def main():
     global CONTOURS
-    init_file = "voderberg_srn2_vars.init"
-    init_file = "voderberg_srn2_angles45_contact_optimV1.init"
+    #init_file = "voderberg_srn2_vars.init"
+    init_file = "voderberg_srn2_angles45_contact_optimV3.init"
     if os.path.isfile(init_file):
         initial_srn2_vars = load_vars_with_metadata(init_file)
         theta = initial_srn2_vars[0]
         X = initial_srn2_vars[1:15].reshape((7,2))
-        P = initial_srn2_vars[15:17]
-        Q = initial_srn2_vars[17:19]
-        Y = initial_srn2_vars[19:25].reshape((3,2))
-        B = initial_srn2_vars[25:27]
+        P = initial_srn2_vars[15:21].reshape((3,2))
+        Q = initial_srn2_vars[21:27].reshape((3,2))
+        Y = initial_srn2_vars[27:33].reshape((3,2))
+        B = initial_srn2_vars[33:35]
     else:
         # Voderberg SRN2 acquisition conventions
         # N X P A Q Y B S
         VSRN2_keyPoints = acquisition_mode("./VoderbergSRN2Patron.png")
         X = VSRN2_keyPoints[0:7]
-        P = VSRN2_keyPoints[7]
+        P = VSRN2_keyPoints[7] # TODO now it's 3 points
         A = VSRN2_keyPoints[8]
-        Q = VSRN2_keyPoints[9]
+        Q = VSRN2_keyPoints[9] # TODO now it's 3 points
         Y = VSRN2_keyPoints[10:13]
         B = VSRN2_keyPoints[13]
         Bm = -B
@@ -619,6 +624,24 @@ def main():
             B
         ))
         auto_save(initial_srn2_vars)
+
+#     N = np.array([0, 1])
+#     S = np.array([0, -1])
+#     A = rotate_point(S, theta, N) + (S - B)
+#     v_PA = A - P
+#     P = np.array([P, P + (1/3)*v_PA, P + (2/3)*v_PA])
+#     v_AQ = Q - A
+#     Q = np.array([A + (1/3)*v_AQ, A + (2/3)*v_AQ, Q])
+#     initial_srn2_vars = np.concatenate((
+#         [theta],
+#         X.flatten(),
+#         P.flatten(),
+#         Q.flatten(),
+#         Y.flatten(),
+#         B
+#     ))
+#     auto_save(initial_srn2_vars)
+
     CONTOURS = create_contour_srn2(theta, X, P, Q, Y, B)
     draw_contours(CONTOURS)
     print("Points loaded or set")
@@ -628,15 +651,15 @@ def main():
 
     BARRIER_AMPLITUDE = 100.0
 
-    # Combined objective: original objective (here: -theta) plus barrier potential
+    # Combined objective: original objective (here: -contact_length) plus barrier potential
     def combined_objective_srn2(vars):
         global BASE_OBJ, CONTOURS, BARRIER_VAL
         theta = ((vars[0] + np.pi) % (2 * np.pi)) - np.pi
         X = vars[1:15].reshape((7,2))
-        P = vars[15:17]
-        Q = vars[17:19]
-        Y = vars[19:25].reshape((3,2))
-        B = vars[25:27]
+        P = vars[15:21].reshape((3,2))
+        Q = vars[21:27].reshape((3,2))
+        Y = vars[27:33].reshape((3,2))
+        B = vars[33:35]
         BASE_OBJ = -contact_length(theta, P, Q, B)
         CONTOURS = create_contour_srn2(theta, X, P, Q, Y, B)
         BARRIER_VAL = barrier_potential(CONTOURS, MIN_DISTANCE, BARRIER_AMPLITUDE)
@@ -652,8 +675,11 @@ def main():
             if event.type == pygame.QUIT:
                 pygame.quit(); sys.exit()
         combined_val = BASE_OBJ + BARRIER_VAL
-        caption_str = f"{free_text} Iteration {optimization_callback_srn2.iteration}: Objective {BASE_OBJ:.6f}, Barrier {BARRIER_VAL:.6f}, Combined {combined_val:.6f}"
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT, {'caption': caption_str}))
+        caption_str = f"{free_text} Iteration {optimization_callback_srn2.iteration}: Objective {float(BASE_OBJ):.6f}, Barrier {float(BARRIER_VAL):.6f}, Combined {float(combined_val):.6f}"
+        if threading.current_thread() == threading.main_thread():
+            pygame.display.set_caption(caption_str)
+        else:
+            pygame.event.post(pygame.event.Event(pygame.USEREVENT, {'caption': caption_str}))
         optimization_callback_srn2.iteration += 1
         draw_contours(CONTOURS)
         # wait_for_keypress()
@@ -684,7 +710,7 @@ def main():
 #         contours = create_contour(X, Y, theta)
 #         barrier_val = barrier_potential(contours, MIN_DISTANCE, BARRIER_AMPLITUDE)
 #         return base_obj + barrier_val
-# 
+#
 #     combined_grad = grad(combined_objective)
 # 
 #     # Callback that logs each iteration's parameters and draws the contour,
@@ -711,41 +737,44 @@ def main():
 #     optimization_callback.iteration = 0
 
     # Draw initial contour and wait for keypress
+    # Display of initial objectiv and barrier values
+    combined_objective_srn2(initial_srn2_vars)
     optimization_callback_srn2(initial_srn2_vars)
     print("Optimisation callback initial test. Press a key to optimize")
     wait_for_keypress()
+    print("Running...")
 
     # Threaded solver function
     SELECTED_SOLVER = SolverType.SIMPLE_GRADIENT_DESCENT
     def run_solver():
-#        if SELECTED_SOLVER == SolverType.BASIN_HOPPING:  #-----------------------------------
-#             def local_callback(xk):
-#                 # This callback is called by the local L-BFGS-B minimizer within basin hopping.
-#                 # It now accepts only one argument (xk) and uses the global current_bh_iter
-#                 # to prepend free text indicating the current basin hopping iteration.
-#                 optimization_callback(xk, free_text=f"BASEHOPPING (iteration {current_bh_iter}) ")
-#             minimizer_kwargs = {
-#                 "method": "L-BFGS-B",
-#                 "jac": combined_grad,
-#                 "callback": local_callback,  # Use the local callback that expects one argument.
-#                 "options": {"disp": True, "eps": 1e-12, "maxiter": 10}
-#             }
-#             def bh_callback(x, f, accept):
-#                 global current_bh_iter
-#                 current_bh_iter += 1
-#                 # This callback is called at each basin hopping iteration.
-#                 # It injects free text with the basin hopping iteration info,
-#                 # and then calls the optimization_callback to display it.
-#                 optimization_callback(x, free_text=f"BASEHOPPING (iteration {current_bh_iter}, global: f: {f:.6f}, accepted: {accept}) ")
-#             basinhopping(
-#                 func=combined_objective,
-#                 x0=initial_vars,
-#                 minimizer_kwargs=minimizer_kwargs,
-#                 niter=100,
-#                 stepsize=0.05,
-#                 disp=True,
-#                 callback=bh_callback
-#             )
+        if SELECTED_SOLVER == SolverType.BASIN_HOPPING:  #-----------------------------------
+            def local_callback(xk):
+                # This callback is called by the local L-BFGS-B minimizer within basin hopping.
+                # It now accepts only one argument (xk) and uses the global current_bh_iter
+                # to prepend free text indicating the current basin hopping iteration.
+                optimization_callback_srn2(xk, free_text=f"BASEHOPPING (iteration {current_bh_iter}) ")
+            minimizer_kwargs = {
+                "method": "L-BFGS-B",
+                "jac": combined_grad_srn2,
+                "callback": local_callback,  # Use the local callback that expects one argument.
+                "options": {"disp": True, "eps": 1e-12, "maxiter": 10}
+            }
+            def bh_callback(x, f, accept):
+                global current_bh_iter
+                current_bh_iter += 1
+                # This callback is called at each basin hopping iteration.
+                # It injects free text with the basin hopping iteration info,
+                # and then calls the optimization_callback to display it.
+                optimization_callback_srn2(x, free_text=f"BASEHOPPING (iteration {current_bh_iter}, global: f: {f:.6f}, accepted: {accept}) ")
+            basinhopping(
+                func=combined_objective_srn2,
+                x0=initial_srn2_vars,
+                minimizer_kwargs=minimizer_kwargs,
+                niter=100,
+                stepsize=0.05,
+                disp=True,
+                callback=bh_callback
+            )
 # NEEDS A TORCH REFACTOR OF EVERYTHING
 #         elif SELECTED_SOLVER == SolverType.TORCH_ADAM: #-----------------------------------
 #             current_vars = torch.tensor(initial_vars, requires_grad=True, dtype=torch.float32)
@@ -761,7 +790,7 @@ def main():
 #                 loss.backward()
 #                 optimizer.step()
         #                 optimization_callback(current_vars.detach().numpy())
-        if SELECTED_SOLVER == SolverType.SIMPLE_GRADIENT_DESCENT:  # -----------------------------------
+        elif SELECTED_SOLVER == SolverType.SIMPLE_GRADIENT_DESCENT:  # -----------------------------------
             current_vars = initial_srn2_vars.copy()
             step = 0.02
             max_iter = 2000
@@ -785,6 +814,7 @@ def main():
                 combined_objective_srn2(current_vars)
                 fallback_flag = False
                 if BARRIER_VAL > BARRIER_AMPLITUDE/2:
+                    print("Gradient move fallback, BARRIER_VAL:", BARRIER_VAL, "new step:", step/2)
                     current_vars = previous_vars
                     step /= 2
                     fallback_flag = True
