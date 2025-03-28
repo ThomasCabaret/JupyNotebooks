@@ -2,6 +2,8 @@ from enum import Enum, auto
 import pandas as pd
 import plotly.express as px
 import math
+import plotly.graph_objects as go
+from plotly.colors import sample_colorscale
 
 NATIVE_WIDTH = 1280
 NATIVE_HEIGHT = 720
@@ -278,52 +280,51 @@ def parse_nubase_species(filepath: str) -> dict[tuple[int, int], NuclearSpecies]
     return df_to_species(df)
 
 #------------------------------------------------------------------------------------
-import plotly.express as px
-import math
-import pandas as pd
-
-#------------------------------------------------------------------------------------
-NATIVE_WIDTH = 1280
-NATIVE_HEIGHT = 720
-
-EXPORTS = {
-    "hd": (1920, 1080),
-    "4k": (3840, 2160)
-}
-
-#------------------------------------------------------------------------------------
 def plot_half_life_nz(species_dict: dict[tuple[int, int], "NuclearSpecies"], basename="half_life_nz"):
-    data = []
+    shapes = []; texts = []; colors = []; xs = []; ys = []
     for (Z, N), sp in species_dict.items():
-        if sp.half_life_s is not None and sp.half_life_s > 0:
-            log_hl = math.log10(sp.half_life_s)
-            data.append({
-                "Z": Z,
-                "N": N,
-                "Symbol": sp.symbol or "?",
-                "HalfLife_s": sp.half_life_s,
-                "log10_HalfLife": log_hl
-            })
-    if not data:
-        print("[WARN] No species with defined half-life to plot")
+        if sp.half_life_s is None or sp.half_life_s <= 0:
+            continue
+        log_hl = math.log10(sp.half_life_s)
+        x0, x1 = N - 0.5, N + 0.5
+        y0, y1 = Z - 0.5, Z + 0.5
+        xs.append([x0, x1, x1, x0, x0])
+        ys.append([y0, y0, y1, y1, y0])
+        colors.append(log_hl)
+        texts.append(f"{sp.symbol or '?'}-{sp.A}<br>log10(T1/2)={log_hl:.2f}")
+    if not xs:
+        print("[WARN] No valid half-life data to plot.")
         return
-    df = pd.DataFrame(data)
-    fig = px.scatter(
-        df,
-        x="N",
-        y="Z",
-        color="log10_HalfLife",
-        color_continuous_scale="Viridis",
-        hover_name="Symbol",
-        hover_data={"HalfLife_s": True, "log10_HalfLife": True, "N": False, "Z": False},
-        title="N-Z Diagram Colored by log10(Half-life in seconds)"
-    )
-    fig.update_traces(marker=dict(size=6, symbol="square"))
+    color_min = min(colors)
+    color_max = max(colors)
+    colorscale = px.colors.sequential.Viridis
+    norm = lambda v: (v - color_min) / (color_max - color_min) if color_max > color_min else 0.5
+    fig = go.Figure()
+    for x_coords, y_coords, c, text in zip(xs, ys, colors, texts):
+        fill_color = sample_colorscale(colorscale, norm(c), low=color_min, high=color_max)[0]
+        fig.add_trace(go.Scatter(
+            x=x_coords,
+            y=y_coords,
+            fill='toself',
+            fillcolor=fill_color,
+            line=dict(width=0),
+            mode='none',
+            hoverinfo='text',
+            hovertext=text,
+            showlegend=False
+        ))
+    fig.add_trace(go.Scatter(
+        x=[None], y=[None],
+        mode='markers',
+        marker=dict(color=[color_min, color_max], colorscale=colorscale, cmin=color_min, cmax=color_max, colorbar=dict(title="log10(Half-life [s])")),
+        showlegend=False
+    ))
     fig.update_layout(
+        title="N-Z Diagram: log10(Half-life in seconds)",
+        xaxis=dict(title="Neutron Number (N)", scaleanchor="y", showgrid=False, tickmode="auto", ticks="outside", tickfont=dict(size=10)),
+        yaxis=dict(title="Proton Number (Z)", showgrid=False, tickmode="auto", ticks="outside", tickfont=dict(size=10)),
         width=NATIVE_WIDTH,
         height=NATIVE_HEIGHT,
-        xaxis_title="Neutron Number (N)",
-        yaxis_title="Proton Number (Z)",
         margin=dict(t=60, b=60),
         template="plotly_white"
     )
@@ -346,32 +347,46 @@ def plot_dominant_decay_nz(species_dict: dict[tuple[int, int], "NuclearSpecies"]
     for (Z, N), sp in species_dict.items():
         dom = sp.get_dominant_decay()
         if dom:
-            data.append({
-                "Z": Z,
-                "N": N,
-                "Symbol": sp.symbol or "?",
-                "DecayMode": dom.mode.value
-            })
+            data.append({"Z": Z, "N": N, "Symbol": sp.symbol or "?", "DecayMode": dom.mode.value})
     if not data:
-        print("[WARN] No species with identifiable dominant decay mode to plot")
+        print("[WARN] No species with dominant decay mode to plot.")
         return
     df = pd.DataFrame(data)
-    fig = px.scatter(
-        df,
-        x="N",
-        y="Z",
-        color="DecayMode",
-        symbol="DecayMode",
-        hover_name="Symbol",
-        hover_data={"DecayMode": True, "N": False, "Z": False},
-        title="N-Z Diagram Colored by Dominant Decay Mode"
-    )
-    fig.update_traces(marker=dict(size=6, symbol="square"))
+    palette = px.colors.qualitative.Dark24 + px.colors.qualitative.Set3
+    unique_modes = sorted(df["DecayMode"].unique())
+    color_map = {mode: palette[i % len(palette)] for i, mode in enumerate(unique_modes)}
+    fig = go.Figure()
+    for mode in unique_modes:
+        sub = df[df["DecayMode"] == mode]
+        for _, row in sub.iterrows():
+            Z, N = row["Z"], row["N"]
+            x0, x1 = N - 0.5, N + 0.5
+            y0, y1 = Z - 0.5, Z + 0.5
+            fig.add_trace(go.Scatter(
+                x=[x0, x1, x1, x0, x0],
+                y=[y0, y0, y1, y1, y0],
+                fill='toself',
+                fillcolor=color_map[mode],
+                line=dict(width=0),
+                mode='none',
+                name=mode,
+                hoverinfo='text',
+                hovertext=f"{row['Symbol']}-{Z+N}<br>{mode}",
+                showlegend=False
+            ))
+    for mode in unique_modes:
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],
+            mode='markers',
+            marker=dict(size=10, color=color_map[mode]),
+            name=mode
+        ))
     fig.update_layout(
+        title="N-Z Diagram by Dominant Decay Mode",
+        xaxis=dict(title="Neutron Number (N)", scaleanchor="y", showgrid=False, tickmode="auto", ticks="outside", tickfont=dict(size=10)),
+        yaxis=dict(title="Proton Number (Z)", showgrid=False, tickmode="auto", ticks="outside", tickfont=dict(size=10)),
         width=NATIVE_WIDTH,
         height=NATIVE_HEIGHT,
-        xaxis_title="Neutron Number (N)",
-        yaxis_title="Proton Number (Z)",
         margin=dict(t=60, b=60),
         template="plotly_white"
     )
