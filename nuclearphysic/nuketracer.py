@@ -82,6 +82,8 @@ class NuclearSpecies:
             lines.append(f"  Excitation energy: {self.excited_energy_keV} keV")
         return '\n'.join(lines)
 
+# NUBASE PARSER #################################################################################
+
 #------------------------------------------------------------------------------------
 def parse_nubase_typed(filepath):
     fields = [
@@ -279,6 +281,8 @@ def parse_nubase_species(filepath: str) -> dict[tuple[int, int], NuclearSpecies]
     df = df[df["s"].isna() | ~df["s"].isin(['m', 'n', 'p', 'q', 'r', 'i', 'j', 'x'])]
     return df_to_species(df)
 
+# PLOTLY ADAPTER #################################################################################
+
 #------------------------------------------------------------------------------------
 def plot_half_life_nz(species_dict: dict[tuple[int, int], "NuclearSpecies"], basename="half_life_nz"):
     shapes = []; texts = []; colors = []; xs = []; ys = []
@@ -403,8 +407,144 @@ def plot_dominant_decay_nz(species_dict: dict[tuple[int, int], "NuclearSpecies"]
         except Exception as e:
             print(f"[WARN] Failed to write {output_file}: {e}")
 
+# PYGAME ADAPTER #################################################################################
+
+#------------------------------------------------------------------------------------
+class RendererAdapter:
+    def __init__(self, species_dict: dict[tuple[int, int], "NuclearSpecies"]):
+        self.species_dict = species_dict
+        self.color_map = self._generate_color_map()
+    
+    def _generate_color_map(self):
+        """Generate a fixed color map for each decay mode."""
+        import random
+        decay_modes = list(DecayMode)
+        palette = [(random.randint(50, 255), random.randint(50, 255), random.randint(50, 255)) for _ in decay_modes]
+        return {mode: palette[i % len(palette)] for i, mode in enumerate(decay_modes)}
+
+    def get_render_data(self):
+        render_data = []
+        for (Z, N), species in self.species_dict.items():
+            dominant_decay = species.get_dominant_decay()
+            if dominant_decay:
+                color = self.color_map.get(dominant_decay.mode, (200, 200, 200))
+            else:
+                color = (100, 100, 100)  # Default color if no decay mode is defined
+            render_data.append({
+                "pos": (N, Z),
+                "size": (0.9, 0.9),
+                "color": color,
+                "symbol": species.symbol or "?"
+            })
+        return render_data
+
+# APP EXPORT AND VIEW #################################################################################
+
+import pygame
+import threading
+from typing import Tuple, List
+import time
+import sys
+
+# Constants
+WINDOW_WIDTH = 1280
+WINDOW_HEIGHT = 720
+FPS = 60
+BACKGROUND_COLOR = (30, 30, 30)
+GRID_COLOR = (60, 60, 60)
+SQUARE_SIZE = 20
+
+# Global Variables for Zoom and Pan
+zoom_level = 1.0
+offset_x = 0
+offset_y = 0
+running = True
+
+# Lock for thread safety
+lock = threading.Lock()
+
+#------------------------------------------------------------------------------------
+class Viewer:
+    def __init__(self, render_data):
+        self.render_data = render_data
+        self.zoom_level = 1.0
+        self.offset_x = 0  # camera center x (world coordinates)
+        self.offset_y = 0  # camera center y (world coordinates)
+        self.running = True
+        pygame.init()
+        self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+        pygame.display.set_caption("N-Z Diagram Viewer")
+    def render(self):
+        clock = pygame.time.Clock()
+        while self.running:
+            with lock:
+                self.screen.fill(BACKGROUND_COLOR)
+                self.draw_objects()
+                pygame.display.flip()
+            clock.tick(FPS)
+        pygame.quit()
+    def draw_objects(self):
+        scale = SQUARE_SIZE * self.zoom_level
+        min_n = self.offset_x - WINDOW_WIDTH/(2*scale)
+        max_n = self.offset_x + WINDOW_WIDTH/(2*scale)
+        min_z = self.offset_y - WINDOW_HEIGHT/(2*scale)
+        max_z = self.offset_y + WINDOW_HEIGHT/(2*scale)
+        for obj in self.render_data:
+            N, Z = obj["pos"]
+            if not (min_n <= N <= max_n and min_z <= Z <= max_z):
+                continue  # Skip objects outside the visible area
+            self.draw_single_object(obj)
+    def draw_single_object(self, obj):
+        N, Z = obj["pos"]
+        color = obj["color"]
+        # Invert Z so that world Y increases upward
+        scale = SQUARE_SIZE * self.zoom_level
+        x = int((N - self.offset_x) * scale + WINDOW_WIDTH/2)
+        y = int((self.offset_y - Z) * scale + WINDOW_HEIGHT/2)
+        size = int(scale * obj["size"][0])  # use adapter-provided size factor
+        if -size < x < WINDOW_WIDTH and -size < y < WINDOW_HEIGHT:
+            pygame.draw.rect(self.screen, color, pygame.Rect(x - size//2, y - size//2, size, size))
+    def handle_input(self):
+        dragging = False
+        last_mouse_pos = None
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        dragging = True
+                        last_mouse_pos = pygame.mouse.get_pos()
+                    elif event.button == 4:
+                        self.zoom_level *= 1.1
+                    elif event.button == 5:
+                        self.zoom_level /= 1.1
+                if event.type == pygame.MOUSEBUTTONUP:
+                    if event.button == 1:
+                        dragging = False
+                if event.type == pygame.MOUSEMOTION:
+                    if dragging and last_mouse_pos:
+                        current_mouse_pos = pygame.mouse.get_pos()
+                        scale = SQUARE_SIZE * self.zoom_level
+                        dx = (current_mouse_pos[0] - last_mouse_pos[0]) / scale
+                        dy = (current_mouse_pos[1] - last_mouse_pos[1]) / scale
+                        # Update camera center; subtract dx so that dragging right moves scene left
+                        self.offset_x -= dx
+                        self.offset_y += dy
+                        last_mouse_pos = current_mouse_pos
+            time.sleep(0.01)
+
 #------------------------------------------------------------------------------------
 if __name__ == "__main__":
     species = parse_nubase_species("nubase_4.mas20.txt")
-    plot_half_life_nz(species, basename="nuclear_half_life")
-    plot_dominant_decay_nz(species, basename="nuclear_decay_mode")
+    adapter = RendererAdapter(species)
+    render_data = adapter.get_render_data()
+
+    viewer = Viewer(render_data)
+    render_thread = threading.Thread(target=viewer.render)
+    render_thread.start()
+    viewer.handle_input()
+    render_thread.join()
+
