@@ -86,6 +86,33 @@ class NuclearSpecies:
         return '\n'.join(lines)
 
 # NUBASE PARSER #################################################################################
+#     column   quantity   format      description
+#       1: 3   AAA           a3       Mass Number (AAA)
+#       5: 8   ZZZi          a4       Atomic Number (ZZZ); i=0 (gs); i=1,2 (isomers); i=3,4 (levels); i=5 (resonance); i=8,9 (IAS)
+#                                     i=3,4,5,6 can also indicate isomers (when more than two isomers are presented in a nuclide)
+#     12: 16   A El          a5       A Element 
+#     17: 17   s             a1       s=m,n (isomers); s=p,q (levels); s=r (reonance); s=i,j (IAS); 
+#                                     s=p,q,r,x can also indicate isomers (when more than two isomers are presented in a nuclide)
+#     19: 31   Mass #     f13.6       Mass Excess in keV (# from systematics)
+#     32: 42   dMass #    f11.6       Mass Excess uncertainty in keV (# from systematics)
+#     43: 54   Exc #      f12.6       Isomer Excitation Energy in keV (# from systematics)
+#     55: 65   dE #       f11.6       Isomer Excitation Energy uncertainty in keV (# from systematics)
+#     66: 67   Orig          a2       Origin of Excitation Energy  
+#     68: 68   Isom.Unc      a1       Isom.Unc = *  (gs and isomer ordering is uncertain) 
+#     69: 69   Isom.Inv      a1       Isom.Inv = &  (the ordering of gs and isomer is reversed compared to ENSDF) 
+#     70: 78   T #         f9.4       Half-life (# from systematics); stbl=stable; p-unst=particle unstable
+#     79: 80   unit T        a2       Half-life unit 
+#     82: 88   dT            a7       Half-life uncertainty 
+#     89:102   Jpi */#/T=    a14      Spin and Parity (* directly measured; # from systematics; T=isospin) 
+#    103:104   Ensdf year    a2       Ensdf update year 
+#    115:118   Discovery     a4       Year of Discovery 
+#    120:209   BR            a90      Decay Modes and their Intensities and Uncertanties in %; IS = Isotopic Abundance in %
+#--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#001 0000   1n       8071.3181     0.0004                              609.8    s 0.6    1/2+*         06          1932 B-=100
+#001 0010   1H       7288.971064   0.000013                            stbl              1/2+*         06          1920 IS=99.9855 78
+#002 0010   2H      13135.722895   0.000015                            stbl              1+*           03          1932 IS=0.0145 78
+#...
+
 def parse_nubase_typed(filepath):
     fields = [
         ("AAA", 0, 3, int),
@@ -499,7 +526,6 @@ class Viewer:
                 self.draw_objects()
                 pygame.display.flip()
             clock.tick(FPS)
-        pygame.quit()
     def draw_objects(self):
         scale = SQUARE_SIZE * self.zoom_level
         min_n = self.offset_x - WINDOW_WIDTH/(2*scale)
@@ -534,9 +560,6 @@ class Viewer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-                    pygame.display.quit()
-                    pygame.quit()
-                    sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         dragging = True
@@ -561,13 +584,57 @@ class Viewer:
 
 #------------------------------------------------------------------------------------
 if __name__ == "__main__":
+    # Pygame initialization should ideally be inside the Viewer's __init__,
+    # but keeping it here as requested to minimize changes to this block.
     pygame.init()
+    # Setting display mode here might be okay if Viewer doesn't also do it.
+    # If Viewer.__init__ handles display setup, this line should be removed.
     pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    species = parse_nubase_species("nubase_4.mas20.txt")
+
+    # --- Data Loading --- (Assuming these functions exist and work)
+    # Consider adding file existence checks here as done previously
+    nubase_filepath = "nubase_4.mas20.txt" # Default or use sys.argv
+    # (Optional: Add file check logic from previous examples if desired)
+    print(f"Loading species from: {nubase_filepath}")
+    species = parse_nubase_species(nubase_filepath)
+    if not species:
+         print("ERROR: No species loaded. Exiting.")
+         sys.exit(1) # Exit if loading failed
+    print(f"Loaded {len(species)} species.")
+
+    # --- Setup Viewer and Adapter ---
     adapter = RendererAdapter(species)
     render_data = adapter.get_render_data()
+    # Assuming Viewer.__init__ does NOT re-initialize pygame or screen if done above
     viewer = Viewer(render_data, adapter)
-    render_thread = threading.Thread(target=viewer.render, daemon=True)
+
+    # --- Threading ---
+    # 3. Start render thread as NON-DAEMON so join() will wait for it
+    render_thread = threading.Thread(target=viewer.render, daemon=False, name="RenderThread")
     render_thread.start()
-    viewer.handle_input()
+
+    # --- Run Input Loop (Main Thread) ---
+    # Assuming viewer.handle_input() now blocks until viewer._running is False
+    # and that viewer._running is set to False on QUIT event.
+    print("Starting input handler...")
+    try:
+        viewer.handle_input()
+    except KeyboardInterrupt: # Handle Ctrl+C gracefully
+        print("KeyboardInterrupt received, signaling viewer to stop.")
+        # Assuming Viewer has a method to signal stop, e.g., viewer.stop()
+        # If not, the handle_input setting _running=False on QUIT is sufficient
+        # viewer.stop() # Call this if viewer has such a method
+        pass # Allow loop in handle_input to terminate naturally
+
+    # --- Shutdown ---
+    # 3. Wait for the render thread to finish *after* the input loop has ended
+    print("Main thread waiting for render thread to join...")
     render_thread.join()
+    print("Render thread joined.")
+
+    # 4. Quit Pygame *after* the render thread has finished cleanly
+    print("Quitting Pygame.")
+    pygame.quit()
+
+    print("Program finished.")
+    # No sys.exit() needed here, program exits when main thread finishes.
