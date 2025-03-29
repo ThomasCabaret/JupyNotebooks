@@ -65,10 +65,12 @@ class NuclearSpecies:
     def get_dominant_decay(self) -> DecayBranch | None:
         if not self.decay_branches:
             return None
+        stable_branch = next((b for b in self.decay_branches if b.mode == DecayMode.STABLE), None)
+        if stable_branch:
+            return stable_branch
         return max((b for b in self.decay_branches if b.intensity is not None), key=lambda x: x.intensity, default=None)
-
-    def __repr__(self):
-        return f"{self.symbol or '?'}-{self.A} (Z={self.Z}, N={self.N})"
+        def __repr__(self):
+            return f"{self.symbol or '?'}-{self.A} (Z={self.Z}, N={self.N})"
 
     def __str__(self):
         lines = [f"{self.symbol or '?'}-{self.A} (Z={self.Z}, N={self.N})"]
@@ -221,6 +223,8 @@ def parse_nubase_typed(filepath):
 
 #------------------------------------------------------------------------------------
 def convert_half_life_to_seconds(value: float | None, unit: str | None) -> float | None:
+    if math.isinf(value):
+        return value
     if value is None or unit is None:
         return None
     scale = {
@@ -422,6 +426,7 @@ class RendererAdapter:
     def _load_icon(self, mode: DecayMode):
         filename = f"{mode.name.lower()}_icon.png"
         if os.path.isfile(filename):
+            print("Loaded icon file", filename)
             return pygame.image.load(filename).convert_alpha()
         else:
             print("Missing icon file", filename)
@@ -529,6 +534,7 @@ class Viewer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                    pygame.display.quit()
                     pygame.quit()
                     sys.exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -561,7 +567,7 @@ if __name__ == "__main__":
     adapter = RendererAdapter(species)
     render_data = adapter.get_render_data()
     viewer = Viewer(render_data, adapter)
-    render_thread = threading.Thread(target=viewer.render)
+    render_thread = threading.Thread(target=viewer.render, daemon=True)
     render_thread.start()
     viewer.handle_input()
     render_thread.join()
