@@ -15,6 +15,7 @@ EXPORTS = {
 
 #------------------------------------------------------------------------------------
 class DecayMode(Enum):
+    STABLE = "STBL"
     BETA_MINUS = "B-"
     BETA_PLUS = "B+"
     DOUBLE_BETA_MINUS = "2B-"
@@ -83,8 +84,6 @@ class NuclearSpecies:
         return '\n'.join(lines)
 
 # NUBASE PARSER #################################################################################
-
-#------------------------------------------------------------------------------------
 def parse_nubase_typed(filepath):
     fields = [
         ("AAA", 0, 3, int),
@@ -106,17 +105,18 @@ def parse_nubase_typed(filepath):
         ("DiscoveryYear", 114, 118, int),
         ("DecayModes", 119, 209, str)
     ]
-
     def try_parse(value, target_type, field_name):
         raw = value.strip().replace('#', '').replace('*', '').replace('~', '')
         if raw.lower() in {'', 'non-exist', 'none'}:
             return None
-        if field_name == "HalfLife" and raw.lower() in {'stbl', 'p-unst'}:
-            return None
+        if field_name == "HalfLife":
+            if raw.lower() == "stbl":
+                return float('inf')
+            if raw.lower() == "p-unst":
+                return None
         if field_name == "DecayModes":
             return parse_decay_modes(raw)
         if raw.startswith(('>', '<')):
-            #print(f"[WARN] Truncated/limit value in field '{field_name}': raw='{raw}'")
             raw = raw[1:]
         if target_type is float:
             import re
@@ -142,7 +142,6 @@ def parse_nubase_typed(filepath):
         except Exception:
             print(f"[ERROR] Failed to parse field '{field_name}' ? expected {target_type.__name__}, got raw='{raw}'")
             return None
-
     def parse_decay_modes(raw):
         modes = []
         entries = raw.split(';')
@@ -173,10 +172,8 @@ def parse_nubase_typed(filepath):
                     decay = DecayMode.DOUBLE_BETA_MINUS
                 elif subkey == 'B':
                     decay = DecayMode.BETA_PLUS
-                    #print(f"[WARN] Interpreting ambiguous 'B' as BETA_PLUS")
                 elif subkey == 'e':
                     decay = DecayMode.BETA_PLUS
-                    #print(f"[WARN] Interpreting ambiguous 'e' as BETA_PLUS")
                 elif subkey.startswith('B-'):
                     decay = DecayMode.BETA_MINUS
                 elif subkey.startswith('B+'):
@@ -210,7 +207,6 @@ def parse_nubase_typed(filepath):
                     intensity = None
                 modes.append((decay, intensity))
         return modes
-
     data = []
     with open(filepath, 'r', encoding='utf-8') as f:
         for line in f:
@@ -268,6 +264,8 @@ def df_to_species(df: pd.DataFrame) -> dict[tuple[int, int], NuclearSpecies]:
         sp.half_life_unit = row["HalfLifeUnit"]
         sp.spin_parity = row["Jpi"]
         sp.is_isomer = row["s"] in {'m', 'n', 'p', 'q', 'r', 'i', 'j', 'x'}
+        if sp.half_life_s == float('inf'):
+            sp.add_decay_mode(DecayMode.STABLE)
         decay_info = row["DecayModes"]
         if decay_info:
             for mode, intensity in decay_info:
@@ -408,70 +406,84 @@ def plot_dominant_decay_nz(species_dict: dict[tuple[int, int], "NuclearSpecies"]
             print(f"[WARN] Failed to write {output_file}: {e}")
 
 # PYGAME ADAPTER #################################################################################
+import random
+import os, pygame
 
 #------------------------------------------------------------------------------------
 class RendererAdapter:
     def __init__(self, species_dict: dict[tuple[int, int], "NuclearSpecies"]):
         self.species_dict = species_dict
         self.color_map = self._generate_color_map()
-    
+        self.icon_cache = {}
     def _generate_color_map(self):
-        """Generate a fixed color map for each decay mode."""
-        import random
         decay_modes = list(DecayMode)
-        palette = [(random.randint(50, 255), random.randint(50, 255), random.randint(50, 255)) for _ in decay_modes]
+        palette = [(random.randint(50,255), random.randint(50,255), random.randint(50,255)) for _ in decay_modes]
         return {mode: palette[i % len(palette)] for i, mode in enumerate(decay_modes)}
-
+    def _load_icon(self, mode: DecayMode):
+        filename = f"{mode.name.lower()}_icon.png"
+        if os.path.isfile(filename):
+            return pygame.image.load(filename).convert_alpha()
+        else:
+            print("Missing icon file", filename)
+        return None
+    def _get_icon(self, mode: DecayMode, zoom: float):
+        key = (mode, round(zoom,3))
+        if key in self.icon_cache:
+            return self.icon_cache[key]
+        icon = self._load_icon(mode)
+        if icon is None:
+            self.icon_cache[key] = None
+            return None
+        size = int(SQUARE_SIZE * zoom * 0.9)
+        scaled_icon = pygame.transform.smoothscale(icon, (size, size))
+        self.icon_cache[key] = scaled_icon
+        return scaled_icon
     def get_render_data(self):
         render_data = []
         for (Z, N), species in self.species_dict.items():
             dominant_decay = species.get_dominant_decay()
             if dominant_decay:
-                color = self.color_map.get(dominant_decay.mode, (200, 200, 200))
+                color = self.color_map.get(dominant_decay.mode, (200,200,200))
+                icon_mode = dominant_decay.mode
             else:
-                color = (100, 100, 100)  # Default color if no decay mode is defined
+                color = (100,100,100)
+                icon_mode = None
             render_data.append({
                 "pos": (N, Z),
                 "size": (0.9, 0.9),
                 "color": color,
-                "symbol": species.symbol or "?"
+                "symbol": species.symbol or "?",
+                "icon_mode": icon_mode
             })
         return render_data
 
 # APP EXPORT AND VIEW #################################################################################
-
 import pygame
 import threading
 from typing import Tuple, List
 import time
 import sys
-
-# Constants
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 FPS = 60
-BACKGROUND_COLOR = (30, 30, 30)
-GRID_COLOR = (60, 60, 60)
+BACKGROUND_COLOR = (30,30,30)
+GRID_COLOR = (60,60,60)
 SQUARE_SIZE = 20
-
-# Global Variables for Zoom and Pan
 zoom_level = 1.0
 offset_x = 0
 offset_y = 0
 running = True
-
-# Lock for thread safety
 lock = threading.Lock()
 
 #------------------------------------------------------------------------------------
 class Viewer:
-    def __init__(self, render_data):
+    def __init__(self, render_data, adapter):
         self.render_data = render_data
+        self.adapter = adapter
         self.zoom_level = 1.0
         self.offset_x = 0  # camera center x (world coordinates)
         self.offset_y = 0  # camera center y (world coordinates)
         self.running = True
-        pygame.init()
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         pygame.display.set_caption("N-Z Diagram Viewer")
     def render(self):
@@ -492,18 +504,24 @@ class Viewer:
         for obj in self.render_data:
             N, Z = obj["pos"]
             if not (min_n <= N <= max_n and min_z <= Z <= max_z):
-                continue  # Skip objects outside the visible area
+                continue
             self.draw_single_object(obj)
     def draw_single_object(self, obj):
         N, Z = obj["pos"]
         color = obj["color"]
-        # Invert Z so that world Y increases upward
         scale = SQUARE_SIZE * self.zoom_level
         x = int((N - self.offset_x) * scale + WINDOW_WIDTH/2)
         y = int((self.offset_y - Z) * scale + WINDOW_HEIGHT/2)
-        size = int(scale * obj["size"][0])  # use adapter-provided size factor
+        size = int(scale * obj["size"][0])
         if -size < x < WINDOW_WIDTH and -size < y < WINDOW_HEIGHT:
-            pygame.draw.rect(self.screen, color, pygame.Rect(x - size//2, y - size//2, size, size))
+            if obj.get("icon_mode") is not None:
+                icon_surface = self.adapter._get_icon(obj["icon_mode"], self.zoom_level)
+                if icon_surface is not None:
+                    self.screen.blit(icon_surface, (x - size//2, y - size//2))
+                else:
+                    pygame.draw.rect(self.screen, color, pygame.Rect(x - size//2, y - size//2, size, size))
+            else:
+                pygame.draw.rect(self.screen, color, pygame.Rect(x - size//2, y - size//2, size, size))
     def handle_input(self):
         dragging = False
         last_mouse_pos = None
@@ -530,7 +548,6 @@ class Viewer:
                         scale = SQUARE_SIZE * self.zoom_level
                         dx = (current_mouse_pos[0] - last_mouse_pos[0]) / scale
                         dy = (current_mouse_pos[1] - last_mouse_pos[1]) / scale
-                        # Update camera center; subtract dx so that dragging right moves scene left
                         self.offset_x -= dx
                         self.offset_y += dy
                         last_mouse_pos = current_mouse_pos
@@ -538,13 +555,13 @@ class Viewer:
 
 #------------------------------------------------------------------------------------
 if __name__ == "__main__":
+    pygame.init()
+    pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
     species = parse_nubase_species("nubase_4.mas20.txt")
     adapter = RendererAdapter(species)
     render_data = adapter.get_render_data()
-
-    viewer = Viewer(render_data)
+    viewer = Viewer(render_data, adapter)
     render_thread = threading.Thread(target=viewer.render)
     render_thread.start()
     viewer.handle_input()
     render_thread.join()
-
