@@ -429,7 +429,7 @@ class APILoader:
         if key in self.cache:
             # print(f"[CACHE HIT] Found cached data for Z={Z}, N={N}")
             return self.cache[key]
-
+        return None #------------------------------------------------------------------ API CALL DEACTIVATED
         nuclide_str = self._get_nuclide_str(Z, N)
         if not nuclide_str:
             return None # Cannot form request
@@ -569,7 +569,6 @@ class APILoader:
              return None
 
     def get_species_list(self, nz_list: List[Tuple[int, int]]) -> Dict[Tuple[int, int], NuclearSpecies]:
-        """ Fetches and parses data for a list of (Z, N) pairs. """
         species_dict = {}
         total = len(nz_list)
         for i, (Z, N) in enumerate(nz_list):
@@ -754,6 +753,42 @@ def plot_dominant_decay_nz(species_dict: dict[tuple[int, int], "NuclearSpecies"]
 import random
 import os, pygame
 
+class RenderMode(Enum):
+    DECAY_MODE = 1
+    HALF_LIFE = 2
+
+#------------------------------------------------------------------------------------
+# Define the gradient colors you want to use (from 0 to 1)
+COLOR_PALETTE: List[Tuple[int, int, int]] = [
+    (148, 0, 211),     # Violet
+    (255, 0, 0),       # Red
+    (255, 255, 0),     # Yellow
+    (0, 255, 0),       # Green
+    (0, 0, 255),       # Blue
+    (0, 0, 0)          # Black
+]
+
+def get_color_from_value(value: float) -> Tuple[int, int, int]:
+    if value == float('inf'):  # Handle infinite half-life as the maximum possible value
+        return COLOR_PALETTE[-1]
+    if value <= 0:
+        return COLOR_PALETTE[0]
+    if value >= 1:
+        return COLOR_PALETTE[-1]
+    num_segments = len(COLOR_PALETTE) - 1
+    segment_length = 1 / num_segments
+    # Find the segment index the value belongs to
+    segment_index = min(int(value / segment_length), num_segments - 1)
+    local_value = (value - segment_index * segment_length) / segment_length
+    # Get the colors at the segment's endpoints
+    color_start = COLOR_PALETTE[segment_index]
+    color_end = COLOR_PALETTE[segment_index + 1]
+    # Interpolate between the two colors
+    r = int(color_start[0] + (color_end[0] - color_start[0]) * local_value)
+    g = int(color_start[1] + (color_end[1] - color_start[1]) * local_value)
+    b = int(color_start[2] + (color_end[2] - color_start[2]) * local_value)
+    return (r, g, b)
+
 #------------------------------------------------------------------------------------
 class RendererAdapter:
     def __init__(self, species_dict: dict[tuple[int, int], "NuclearSpecies"]):
@@ -784,16 +819,27 @@ class RendererAdapter:
         scaled_icon = pygame.transform.smoothscale(icon, (size, size))
         self.icon_cache[key] = scaled_icon
         return scaled_icon
-    def get_render_data(self):
+    def get_render_data(self, render_mode: RenderMode):
         render_data = []
         for (Z, N), species in self.species_dict.items():
-            dominant_decay = species.get_dominant_decay()
-            if dominant_decay:
-                color = self.color_map.get(dominant_decay.mode, (200,200,200))
-                icon_mode = dominant_decay.mode
+            if render_mode == RenderMode.DECAY_MODE:
+                dominant_decay = species.get_dominant_decay()
+                if dominant_decay:
+                    color = self.color_map.get(dominant_decay.mode, (200, 200, 200))
+                    icon_mode = dominant_decay.mode
+                else:
+                    color = (100, 100, 100)
+                    icon_mode = None
+            elif render_mode == RenderMode.HALF_LIFE:
+                if species.half_life_s is not None:
+                    normalized_value = self._normalize_half_life(species.half_life_s)
+                    color = get_color_from_value(normalized_value)
+                    icon_mode = None
+                else:
+                    color = (100, 100, 100)
+                    icon_mode = None
             else:
-                color = (100,100,100)
-                icon_mode = None
+                raise ValueError("Invalid render mode")
             render_data.append({
                 "pos": (N, Z),
                 "size": (0.9, 0.9),
@@ -802,6 +848,15 @@ class RendererAdapter:
                 "icon_mode": icon_mode
             })
         return render_data
+
+    def _normalize_half_life(self, half_life_s: float) -> float:
+        # Normalize half-life on a logarithmic scale between 1e-12s (0) and 1e12s (1)
+        min_log = -12
+        max_log = 12
+        import math
+        value_log = math.log10(half_life_s)
+        normalized_value = (value_log - min_log) / (max_log - min_log)
+        return max(0, min(1, normalized_value))
 
 # APP EXPORT AND VIEW #################################################################################
 import pygame
@@ -924,7 +979,7 @@ if __name__ == "__main__":
 
     # --- Setup Viewer and Adapter ---
     adapter = RendererAdapter(species)
-    render_data = adapter.get_render_data()
+    render_data = adapter.get_render_data(RenderMode.HALF_LIFE)
     # Assuming Viewer.__init__ does NOT re-initialize pygame or screen if done above
     viewer = Viewer(render_data, adapter)
 
