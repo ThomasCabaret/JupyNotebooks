@@ -64,7 +64,7 @@ class NuclearSpecies:
 
     def get_dominant_decay(self) -> DecayBranch | None:
         if not self.decay_branches:
-            return None
+            return DecayBranch(DecayMode.UNKNOWN, 0.0)
         stable_branch = next((b for b in self.decay_branches if b.mode == DecayMode.STABLE), None)
         if stable_branch:
             return stable_branch
@@ -202,7 +202,7 @@ def parse_nubase_typed(filepath):
                 elif subkey == 'B':
                     decay = DecayMode.BETA_PLUS
                 elif subkey == 'e':
-                    decay = DecayMode.BETA_PLUS
+                    decay = DecayMode.ELECTRON_CAPTURE
                 elif subkey.startswith('B-'):
                     decay = DecayMode.BETA_MINUS
                 elif subkey.startswith('B+'):
@@ -309,6 +309,320 @@ def parse_nubase_species(filepath: str) -> dict[tuple[int, int], NuclearSpecies]
     df = parse_nubase_typed(filepath)
     df = df[df["s"].isna() | ~df["s"].isin(['m', 'n', 'p', 'q', 'r', 'i', 'j', 'x'])]
     return df_to_species(df)
+
+# FROM REST API ##################################################################################
+
+import requests
+import os
+import json
+import io # Required for StringIO
+import csv # Required for CSV parsing
+from typing import Dict, Tuple, List, Optional # Added Optional
+import collections
+
+# --- Basic Z to Element Symbol Mapping ---
+# (Add more elements as needed or use a library like mendeleev)
+Z_TO_SYMBOL = {
+    0: "n", 1: "H", 2: "He", 3: "Li", 4: "Be", 5: "B", 6: "C", 7: "N", 8: "O",
+    9: "F", 10: "Ne", 11: "Na", 12: "Mg", 13: "Al", 14: "Si", 15: "P", 16: "S",
+    17: "Cl", 18: "Ar", 19: "K", 20: "Ca", 21: "Sc", 22: "Ti", 23: "V", 24: "Cr",
+    25: "Mn", 26: "Fe", 27: "Co", 28: "Ni", 29: "Cu", 30: "Zn", 31: "Ga", 32: "Ge",
+    33: "As", 34: "Se", 35: "Br", 36: "Kr", 37: "Rb", 38: "Sr", 39: "Y", 40: "Zr",
+    41: "Nb", 42: "Mo", 43: "Tc", 44: "Ru", 45: "Rh", 46: "Pd", 47: "Ag", 48: "Cd",
+    49: "In", 50: "Sn", 51: "Sb", 52: "Te", 53: "I", 54: "Xe", 55: "Cs", 56: "Ba",
+    57: "La", 58: "Ce", 59: "Pr", 60: "Nd", 61: "Pm", 62: "Sm", 63: "Eu", 64: "Gd",
+    65: "Tb", 66: "Dy", 67: "Ho", 68: "Er", 69: "Tm", 70: "Yb", 71: "Lu", 72: "Hf",
+    73: "Ta", 74: "W", 75: "Re", 76: "Os", 77: "Ir", 78: "Pt", 79: "Au", 80: "Hg",
+    81: "Tl", 82: "Pb", 83: "Bi", 84: "Po", 85: "At", 86: "Rn", 87: "Fr", 88: "Ra",
+    89: "Ac", 90: "Th", 91: "Pa", 92: "U", 93: "Np", 94: "Pu", 95: "Am", 96: "Cm",
+    97: "Bk", 98: "Cf", 99: "Es", 100: "Fm", 101: "Md", 102: "No", 103: "Lr",
+    # Add elements 104+ if needed
+}
+
+# --- Helper Function to Safely Convert API String to Float ---
+def safe_float(value_str: Optional[str]) -> Optional[float]:
+    if value_str is None or value_str.strip() == "":
+        return None
+    try:
+        # Handle potential "inf" or similar for stable isotopes if API uses it
+        if value_str.strip().lower() == 'infinity' or value_str.strip().lower() == 'inf':
+             return float('inf')
+        return float(value_str)
+    except ValueError:
+        print(f"[Warning] Could not convert '{value_str}' to float.")
+        return None
+
+# --- Decay Mode String Mapping ---
+# Map strings returned by API's decay_X fields to your DecayMode enum
+API_DECAY_MAP = {
+    "B-": DecayMode.BETA_MINUS,
+    "EC": DecayMode.ELECTRON_CAPTURE,
+    "B+": DecayMode.BETA_PLUS,
+    "EC+B+": DecayMode.BETA_PLUS, # Often EC and B+ are combined in evaluations
+    "A": DecayMode.ALPHA,
+    "IT": DecayMode.ISOMERIC_TRANSITION,
+    "SF": DecayMode.SPONTANEOUS_FISSION,
+    "P": DecayMode.PROTON,
+    "N": DecayMode.NEUTRON,
+    # Add mappings for 2B-, B-N, B-2N, EC P, EC A, 2P, 2N, Cluster, etc.
+    # based on actual strings observed in the API output for decay_1, decay_2, decay_3
+    "STABLE": DecayMode.STABLE, # If the API uses 'STABLE'
+    "": None, # Handle empty decay fields
+}
+
+# --- API Loader Class ---
+API_URL = "https://nds.iaea.org/relnsd/v1/data" # Use v1 explicitly
+CACHE_FILE = "nuclear_cache_iaea.json" # Use a distinct cache filename
+
+class APILoader:
+    def __init__(self):
+        # Use instance cache, not global
+        self.cache: Dict[Tuple[int, int], dict] = {}
+        self.load_cache()
+
+    def _get_element_symbol(self, Z: int) -> Optional[str]:
+        return Z_TO_SYMBOL.get(Z)
+
+    def _get_nuclide_str(self, Z: int, N: int) -> Optional[str]:
+        symbol = self._get_element_symbol(Z)
+        if symbol is None:
+            print(f"[Error] No element symbol found for Z={Z}")
+            return None
+        A = Z + N
+        # Ensure neutron is handled correctly if Z=0
+        return f"{A}{symbol}" if Z > 0 else f"{A}n"
+
+    def load_cache(self):
+        if os.path.exists(CACHE_FILE):
+            try:
+                with open(CACHE_FILE, 'r') as f:
+                    # Convert string keys "Z-N" back to tuple keys (Z, N)
+                    raw_cache = json.load(f)
+                    self.cache = {
+                        (int(k.split('-')[0]), int(k.split('-')[1])): v
+                        for k, v in raw_cache.items()
+                        if '-' in k # Basic check for valid key format
+                    }
+                print(f"Loaded {len(self.cache)} entries from cache {CACHE_FILE}")
+            except (json.JSONDecodeError, ValueError, IndexError, KeyError) as e:
+                 print(f"[Error] Failed to load or parse cache file {CACHE_FILE}: {e}. Starting with empty cache.")
+                 self.cache = {} # Start fresh if cache is corrupt
+        else:
+            print("Cache file not found, will query API.")
+
+    def save_cache(self):
+        try:
+            with open(CACHE_FILE, 'w') as f:
+                 # Convert tuple keys (Z, N) to string keys "Z-N" for JSON
+                 serializable_cache = {
+                     f"{k[0]}-{k[1]}": v
+                     for k, v in self.cache.items()
+                 }
+                 json.dump(serializable_cache, f, indent=2) # Add indent for readability
+            # print(f"Saved {len(self.cache)} entries to cache {CACHE_FILE}") # Reduce verbosity
+        except IOError as e:
+             print(f"[Error] Failed to save cache to {CACHE_FILE}: {e}")
+
+
+    def retrieve_species_data(self, Z: int, N: int) -> Optional[dict]:
+        key = (Z, N)
+        if key in self.cache:
+            # print(f"[CACHE HIT] Found cached data for Z={Z}, N={N}")
+            return self.cache[key]
+
+        nuclide_str = self._get_nuclide_str(Z, N)
+        if not nuclide_str:
+            return None # Cannot form request
+
+        params = {"fields": "ground_states", "nuclides": nuclide_str}
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:100.0) Gecko/20100101 Firefox/100.0'
+            # Use a reasonable user agent string
+        }
+
+        print(f"[API CALL] Requesting ground_state data for {nuclide_str} (Z={Z}, N={N})")
+
+        try:
+            response = requests.get(API_URL, params=params, headers=headers, timeout=30) # Add timeout
+
+            # Check for API specific error codes (returned as plain text)
+            if not response.ok:
+                if response.status_code == 403:
+                     print(f"[API ERROR 403] Forbidden for {nuclide_str}. Check User-Agent or potential IP block.")
+                     return None
+                # Try reading potential numeric error code
+                try:
+                    error_code = int(response.text.strip())
+                    print(f"[API ERROR {response.status_code}] Received API error code: {error_code} for {nuclide_str}")
+                except ValueError:
+                    print(f"[API ERROR {response.status_code}] Received non-numeric error message for {nuclide_str}: {response.text[:200]}")
+                return None # General HTTP error
+
+            # Check if response content looks like CSV (heuristic)
+            content = response.text
+            if not content or "z,n,symbol" not in content.splitlines()[0]: # Check header
+                 # Check for numeric error code 0 (valid request, no data)
+                try:
+                    if int(content.strip()) == 0:
+                         print(f"[API Info] No ground_state data found for {nuclide_str} (API code 0).")
+                         # Cache the fact that there's no data? Or just return None. Let's return None.
+                         return None
+                    else:
+                         print(f"[API Warning] Unexpected empty or non-CSV response for {nuclide_str}: {content[:200]}")
+                         return None
+                except ValueError:
+                     print(f"[API Warning] Unexpected non-CSV response for {nuclide_str}: {content[:200]}")
+                     return None
+
+            # Parse CSV
+            csv_file = io.StringIO(content)
+            reader = csv.DictReader(csv_file)
+            data_list = list(reader)
+
+            if not data_list:
+                print(f"[API Info] No data rows returned in CSV for {nuclide_str}.")
+                # Maybe cache this "no data" result? For now, return None.
+                return None
+
+            # For ground_states and specific nuclide, expect only one row
+            if len(data_list) > 1:
+                 print(f"[API Warning] Expected 1 row for ground_state {nuclide_str}, got {len(data_list)}. Using first row.")
+
+            species_data = data_list[0]
+            self.cache[key] = species_data # Cache the dictionary
+            self.save_cache() # Save after successful fetch
+            return species_data
+
+        except requests.Timeout:
+            print(f"[ERROR] API request timed out for {nuclide_str}.")
+            return None
+        except requests.RequestException as e:
+            print(f"[ERROR] Failed API request for {nuclide_str}: {e}")
+            return None
+        except Exception as e:
+            # Catch unexpected errors during processing
+            print(f"[ERROR] Unexpected error processing data for {nuclide_str}: {e}")
+            return None
+
+    def parse_species(self, data: dict, Z: int, N: int) -> Optional[NuclearSpecies]:
+        """ Parses the dictionary data (one row from ground_states CSV) into a NuclearSpecies object. """
+        if not data:
+             print(f"[Parse Error] No data provided for Z={Z}, N={N}")
+             return None
+
+        try:
+            species = NuclearSpecies(Z, N)
+
+            # Basic properties
+            species.symbol = data.get("symbol", "").strip() or None
+            species.spin_parity = data.get("jp", "").strip() or None
+
+            # Mass excess
+            species.mass_excess_keV = safe_float(data.get("mass_excess"))
+            species.mass_excess_unc_keV = safe_float(data.get("unc_me")) # Assuming 'unc_me' is the correct field
+
+            # Half-life
+            species.half_life_s = safe_float(data.get("half_life_sec"))
+            species.half_life_unc_s = safe_float(data.get("unc_hls"))
+            hl_val = data.get("half_life", "").strip()
+            hl_unit = data.get("unit_hl", "").strip()
+            species.half_life_text = f"{hl_val} {hl_unit}".strip() or None
+
+            # Check for stability based on half-life
+            is_stable = species.half_life_s == float('inf') or species.half_life_text.lower() == 'stable'
+            if is_stable:
+                 species.add_decay_mode(DecayMode.STABLE, 100.0)
+                 # API might still list decay modes even if stable (e.g. theoretical SF)
+                 # Let's parse them anyway but ensure STABLE is primary if HL suggests it.
+
+            # Decay Modes (from decay_1, decay_2, decay_3)
+            for i in [1, 2, 3]:
+                mode_str = data.get(f"decay_{i}", "").strip()
+                intensity_str = data.get(f"decay_{i}_%", "").strip()
+
+                if not mode_str: # Stop if no more decay modes listed
+                    break
+
+                decay_mode = API_DECAY_MAP.get(mode_str, DecayMode.UNKNOWN)
+                intensity = safe_float(intensity_str)
+
+                if decay_mode == DecayMode.UNKNOWN:
+                     print(f"[Warning] Unknown decay mode string '{mode_str}' for Z={Z}, N={N}. Mapping to UNKNOWN.")
+                
+                if decay_mode:
+                    # Avoid adding STABLE again if already added based on half-life
+                    if not (is_stable and decay_mode == DecayMode.STABLE):
+                         species.add_decay_mode(decay_mode, intensity)
+
+            # Add other fields if needed (Q-values, binding energy, etc.)
+            # species.q_beta_minus = safe_float(data.get("qbm"))
+            # species.q_alpha = safe_float(data.get("qa"))
+            # ... etc
+
+            return species
+
+        except KeyError as e:
+             print(f"[Parse Error] Missing expected key {e} in data for Z={Z}, N={N}. Data: {data}")
+             return None
+        except Exception as e:
+             print(f"[Parse Error] Unexpected error parsing data for Z={Z}, N={N}: {e}")
+             return None
+
+    def get_species_list(self, nz_list: List[Tuple[int, int]]) -> Dict[Tuple[int, int], NuclearSpecies]:
+        """ Fetches and parses data for a list of (Z, N) pairs. """
+        species_dict = {}
+        total = len(nz_list)
+        for i, (Z, N) in enumerate(nz_list):
+            print(f"Processing {i+1}/{total}: Z={Z}, N={N}")
+            data = self.retrieve_species_data(Z, N) # Fetch raw dict data
+            if not data:
+                print(f"  -> No data retrieved.")
+                continue # Skip if retrieval failed or no data found
+
+            species = self.parse_species(data, Z, N) # Parse the dict
+            if species:
+                species_dict[(Z, N)] = species
+                # print(f"  -> Success: {species.symbol}") # Optional success message
+            else:
+                 print(f"  -> Failed to parse data.")
+
+        print(f"Finished processing. Successfully obtained data for {len(species_dict)} out of {total} requested nuclides.")
+        return species_dict
+
+    def get_all_species(self) -> Dict[Tuple[int, int], NuclearSpecies]:
+        species_dict: Dict[Tuple[int, int], NuclearSpecies] = {}
+        queried: Set[Tuple[int, int]] = set() # Track nuclides processed or in queue
+        queue: Deque[Tuple[int, int]] = collections.deque()
+        # Initialize
+        start_nuclide = (1, 0)
+        queue.append(start_nuclide)
+        while queue:
+            Z, N = queue.popleft()
+            # Check cache first (retrieve_species_data handles this)
+            data = self.retrieve_species_data(Z, N) # Fetches raw dict data (or None)
+            if data:
+                # Data found, parse it
+                species = self.parse_species(data, Z, N)
+                if species:
+                    species_dict[(Z, N)] = species
+                    # Explore valid neighbors only if data was found for current nuclide
+                    neighbors = [
+                        (Z + 1, N),
+                        (Z, N + 1),
+                    ]
+                    for next_Z, next_N in neighbors:
+                        # Basic validity checks
+                        if next_Z < 0 or next_N < 0 or (next_Z == 0 and next_N == 0):
+                            continue
+                        neighbor_key = (next_Z, next_N)
+                        if neighbor_key not in queried:
+                             queried.add(neighbor_key)
+                             queue.append(neighbor_key)
+                # else: parsing failed, don't explore neighbors from this node
+            # else: retrieve_species_data returned None (no data/API error)
+            #      -> Do not add neighbors, effectively pruning this branch
+        print(f"Successfully obtained data for {len(species_dict)} nuclides.")
+        return species_dict
 
 # PLOTLY ADAPTER #################################################################################
 
@@ -591,16 +905,22 @@ if __name__ == "__main__":
     # If Viewer.__init__ handles display setup, this line should be removed.
     pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 
-    # --- Data Loading --- (Assuming these functions exist and work)
+    # --- Data Loading --- from NUBASE
     # Consider adding file existence checks here as done previously
-    nubase_filepath = "nubase_4.mas20.txt" # Default or use sys.argv
-    # (Optional: Add file check logic from previous examples if desired)
-    print(f"Loading species from: {nubase_filepath}")
-    species = parse_nubase_species(nubase_filepath)
-    if not species:
-         print("ERROR: No species loaded. Exiting.")
-         sys.exit(1) # Exit if loading failed
-    print(f"Loaded {len(species)} species.")
+#     nubase_filepath = "nubase_4.mas20.txt" # Default or use sys.argv
+#     # (Optional: Add file check logic from previous examples if desired)
+#     print(f"Loading species from: {nubase_filepath}")
+#     species = parse_nubase_species(nubase_filepath)
+#     if not species:
+#          print("ERROR: No species loaded. Exiting.")
+#          sys.exit(1) # Exit if loading failed
+#     print(f"Loaded {len(species)} species.")
+
+    # --- Data Loading --- from API
+    loader = APILoader()
+    print("Starting data retrieval (may take a long time)...")
+    species = loader.get_all_species() # This performs caching/API calls
+    print(f"Finished. Retrieved data for {len(species)} nuclides.")
 
     # --- Setup Viewer and Adapter ---
     adapter = RendererAdapter(species)
