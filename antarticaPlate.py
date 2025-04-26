@@ -1,30 +1,38 @@
 import os
+import time
 import numpy as np
 import xarray as xr
 import glob
 import pyvista as pv
 from scipy.ndimage import zoom
 
+output_dir = './frames_pyvista_antartica'
+os.makedirs(output_dir, exist_ok=True)
+
 # Parameters
 paleodem_dir = './Scotese_Wright_2018_Maps_1-88_1degX1deg_PaleoDEMS_nc_v2/'
-output_dir = './frames_pyvista'
-os.makedirs(output_dir, exist_ok=True)
-use_interactive = True
-time_start = 0
-max_age = 100
-step = 1
+demo_mode = True  # <----- SET THIS TO False IF YOU WANT MANUAL INTERACTION
+
+# Other settings
 fixed_vmin = -6000
 fixed_vmax = 4000
 zoom_factor = 4
 z_exaggeration = 30
 earth_radius = 6371000
-frames_per_transition = 50
-time_frames = 100
+frame_rate = 25  # frames per second
+dt = 1.0 / frame_rate
 
+# Camera path
 camera_path = [
-    ((23586575.715407833, -43262495.6267938, -15439462.140339784), (0, 0, 0), (0, 0, 1)),
-    ((-33210817.19258376, 32212019.661417406, -22856656.617927868), (0, 0, 0), (0, 0, 1)),
-    ((841697.1492205107, 2544088.6342996275, -51570785.35152652), (0, 0, 0), (0, 0, 1))
+    ((21670351.848707743, -35169177.58583997, -10724692.858335884),
+     (0, 0, 0),
+     (0.31731259647336785, -0.0916657434823759, 0.9438803460138119)),
+    ((-28280247.29284047, 26313815.240560796, -18070005.422952995),
+     (0, 0, 0),
+     (-0.41950473259149795, 0.16117930701558358, 0.8933291724349497)),
+    ((-2747502.2130420175, -572113.80069213, -42590227.82606688),
+     (0, 0, 0),
+     (0.7960342683664514, 0.6023034913707767, -0.059665298699170796))
 ]
 
 # Load available DEMs
@@ -101,86 +109,78 @@ def generate_globe(elevation, lons, lats):
     grid = pv.StructuredGrid()
     grid.points = points
     grid.dimensions = (Lon.shape[1], Lon.shape[0], 1)
-    
-    # IMPORTANT: color scalars are based on original elevation (not exaggerated topo)
+
     elevation_flat = elevation_zoomed.flatten()
     scalars = np.clip(elevation_flat, fixed_vmin, fixed_vmax)
-
     return grid, scalars
 
 # Load DEM information
 age_file_map = load_available_dems()
 available_ages = list(age_file_map.keys())
 
-if use_interactive:
-    plotter = pv.Plotter(off_screen=False)
-    plotter.enable_lightkit()
+# Setup plotter
+plotter = pv.Plotter(off_screen=False, window_size=(1920, 1080))
+plotter.enable_lightkit()
 
-    def capture_camera():
-        cam = plotter.camera
-        print(f"Captured camera: {cam.position}, {cam.focal_point}, {cam.up}")
+frame_age = 0
+frame_counter = 0
+result = interpolate_dem(frame_age, available_ages, age_file_map)
+if result is None:
+    raise RuntimeError(f"No DEM data available for {frame_age} Ma.")
+elevation, lons, lats = result
+grid, scalars = generate_globe(elevation, lons, lats)
+mesh_actor = plotter.add_mesh(grid, scalars=scalars, cmap="terrain", clim=[fixed_vmin, fixed_vmax], show_scalar_bar=False)
+plotter.set_background("black")
+plotter.camera.zoom(1.5)
 
-    plotter.add_key_event('c', capture_camera)
-
-    frame_age = 0
-    result = interpolate_dem(frame_age, available_ages, age_file_map)
-
-    if result is not None:
-        elevation, lons, lats = result
-        grid, scalars = generate_globe(elevation, lons, lats)
-        plotter.add_mesh(grid, scalars=scalars, cmap="terrain", clim=[fixed_vmin, fixed_vmax])
-        plotter.set_background("black")
-        plotter.camera.zoom(1.5)
-        print("Interactive mode launched. Press 'c' to capture camera.")
-        plotter.show()
-    else:
-        print(f"No DEM data available for {frame_age} Ma.")
-
-else:
-    plotter = pv.Plotter(off_screen=True)
-    plotter.enable_lightkit()
-
-    step_counter = 0
+if demo_mode:
+    # DEMO MODE
+    plotter.show(interactive_update=True, auto_close=False)
 
     for i in range(len(camera_path) - 1):
         pos0, focal0, up0 = camera_path[i]
         pos1, focal1, up1 = camera_path[i + 1]
-        for t in np.linspace(0, 1, frames_per_transition):
+        for t in np.linspace(0, 1, 50):
             pos = np.array(pos0) * (1 - t) + np.array(pos1) * t
             focal = np.array(focal0) * (1 - t) + np.array(focal1) * t
             up = np.array(up0) * (1 - t) + np.array(up1) * t
 
-            result = interpolate_dem(0, available_ages, age_file_map)
-            if result is None:
-                continue
-
-            elevation, lons, lats = result
-            plotter.clear()
-            grid, scalars = generate_globe(elevation, lons, lats)
-            plotter.add_mesh(grid, scalars=scalars, cmap="terrain", clim=[fixed_vmin, fixed_vmax])
-            plotter.set_background("black")
             plotter.camera.position = pos
             plotter.camera.focal_point = focal
             plotter.camera.up = up
-            plotter.show(screenshot=os.path.join(output_dir, f"path_frame_{step_counter:04d}.png"), auto_close=False, window_size=(1920, 1080))
-            print(f"Saved transition frame {step_counter}")
-            step_counter += 1
+            plotter.update()
+            filename = os.path.join(output_dir, f"frame_{frame_counter:04d}.png")
+            plotter.screenshot(filename)
+            frame_counter += 1
+            time.sleep(dt)
 
     last_pos, last_focal, last_up = camera_path[-1]
-    for frame_age in range(time_start, max_age + step, step):
+    plotter.camera.position = last_pos
+    plotter.camera.focal_point = last_focal
+    plotter.camera.up = last_up
+
+    # Temporal transition (remonter le temps)
+    for frame_age in np.linspace(0, 100, 100):
         result = interpolate_dem(frame_age, available_ages, age_file_map)
         if result is None:
             continue
         elevation, lons, lats = result
-        plotter.clear()
         grid, scalars = generate_globe(elevation, lons, lats)
-        plotter.add_mesh(grid, scalars=scalars, cmap="terrain", clim=[fixed_vmin, fixed_vmax])
-        plotter.set_background("black")
-        plotter.camera.position = last_pos
-        plotter.camera.focal_point = last_focal
-        plotter.camera.up = last_up
-        plotter.show(screenshot=os.path.join(output_dir, f"time_frame_{step_counter:04d}.png"), auto_close=False, window_size=(1920, 1080))
-        print(f"Saved time frame for {frame_age} Ma")
-        step_counter += 1
+        plotter.remove_actor(mesh_actor)
+        mesh_actor = plotter.add_mesh(grid, scalars=scalars, cmap="terrain", clim=[fixed_vmin, fixed_vmax], show_scalar_bar=False)
+        plotter.update()
+        filename = os.path.join(output_dir, f"frame_{frame_counter:04d}.png")
+        plotter.screenshot(filename)
+        frame_counter += 1
+        time.sleep(dt)
 
     plotter.close()
+else:
+    # INTERACTIVE MODE
+    def capture_camera():
+        cam = plotter.camera
+        print(f"Captured camera:\n  Position: {cam.position}\n  Focal Point: {cam.focal_point}\n  Up Vector: {cam.up}")
+
+    plotter.add_key_event('c', capture_camera)
+    print("Interactive mode active. Press 'c' to capture camera.")
+    plotter.show()
