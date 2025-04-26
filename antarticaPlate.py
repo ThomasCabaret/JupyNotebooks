@@ -1,24 +1,20 @@
 import os
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import cartopy.crs as ccrs
 import xarray as xr
 import glob
+import pyvista as pv
 from scipy.ndimage import zoom
-from matplotlib.colors import LightSource
 
 # Parameters
 paleodem_dir = './Scotese_Wright_2018_Maps_1-88_1degX1deg_PaleoDEMS_nc_v2/'
 time_start = 0  # present day
-max_age = 100  # 100 million years ago
-step = 1  # 1 million year step
-projection_center = (0, -90)  # Center on South Pole
+max_age = 0
+step = 1
 fixed_vmin = -6000
 fixed_vmax = 4000
-zoom_factor = 4  # Spatial upscaling factor
-lightsource_azdeg = 315  # Azimuth of the light source
-lightsource_altdeg = 45  # Altitude of the light source
+zoom_factor = 4
+z_exaggeration = 30
+earth_radius = 6371000  # meters
 
 # Load available DEMs
 def load_available_dems():
@@ -77,44 +73,67 @@ def interpolate_dem(age, available_ages, age_file_map):
 
     return interpolated, lons, lats
 
-# Prepare figure
-fig = plt.figure(figsize=(10, 10))
-ax = plt.axes(projection=ccrs.Orthographic(central_longitude=projection_center[0], central_latitude=projection_center[1]))
-ax.set_global()
-ax.gridlines(draw_labels=True)
-
-# Load DEM info
+# Load DEM information
 age_file_map = load_available_dems()
 available_ages = list(age_file_map.keys())
-ls = LightSource(azdeg=lightsource_azdeg, altdeg=lightsource_altdeg)
 
-# Function to update each frame
-def update(frame_age):
-    ax.clear()
-    ax.set_global()
-    ax.gridlines(draw_labels=True)
-    ax.set_title(f"Antarctica centered - {frame_age} Ma", fontsize=12)
+# Create plotter
+plotter = pv.Plotter(off_screen=False)
+plotter.enable_lightkit()
 
-    result = interpolate_dem(frame_age, available_ages, age_file_map)
-    if result is None:
-        return
+# Single frame at 0 Ma
+frame_age = 0
+result = interpolate_dem(frame_age, available_ages, age_file_map)
 
+if result is not None:
     elevation, lons, lats = result
 
-    # Upscale for smoothness
     elevation_zoomed = zoom(elevation, zoom_factor)
     lon_zoomed = np.linspace(lons.min(), lons.max(), elevation_zoomed.shape[1])
     lat_zoomed = np.linspace(lats.min(), lats.max(), elevation_zoomed.shape[0])
+
     Lon, Lat = np.meshgrid(lon_zoomed, lat_zoomed)
+    topo = elevation_zoomed * z_exaggeration
 
-    # Apply light shading and create RGB image
-    rgb = ls.shade(elevation_zoomed, cmap=plt.cm.terrain, vert_exag=0.1, blend_mode='soft', vmin=fixed_vmin, vmax=fixed_vmax)
+    Lon_flat = Lon.flatten()
+    Lat_flat = Lat.flatten()
+    Z_flat = topo.flatten()
 
-    # Display RGB image
-    ax.imshow(rgb, origin='lower', extent=[lon_zoomed.min(), lon_zoomed.max(), lat_zoomed.min(), lat_zoomed.max()], transform=ccrs.PlateCarree())
+    lon_rad = np.deg2rad(Lon_flat)
+    lat_rad = np.deg2rad(Lat_flat)
 
-# Create frames
-ages = list(range(time_start, max_age + step, step))
-ani = animation.FuncAnimation(fig, update, frames=ages, interval=300, repeat=True)
+    # Base sphere
+    X0 = np.cos(lat_rad) * np.cos(lon_rad)
+    Y0 = np.cos(lat_rad) * np.sin(lon_rad)
+    Z0 = np.sin(lat_rad)
 
-plt.show()
+    norms = np.sqrt(X0**2 + Y0**2 + Z0**2)
+    X0 /= norms
+    Y0 /= norms
+    Z0 /= norms
+
+    # Deformed radius
+    r = earth_radius + Z_flat
+
+    X = r * X0
+    Y = r * Y0
+    Z = r * Z0
+
+    points = np.column_stack((X, Y, Z))
+
+    grid = pv.StructuredGrid()
+    grid.points = points
+    grid.dimensions = (Lon.shape[1], Lon.shape[0], 1)
+
+    scalars = np.clip(Z_flat, fixed_vmin, fixed_vmax)
+
+    plotter.add_mesh(grid, scalars=scalars, cmap="terrain", clim=[fixed_vmin, fixed_vmax])
+    plotter.set_background("black")
+    plotter.camera.zoom(1.5)
+
+    print("Interactive 3D globe launched... Move and rotate with mouse.")
+
+    plotter.show()
+
+else:
+    print(f"No DEM data available for {frame_age} Ma.")
