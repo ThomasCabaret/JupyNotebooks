@@ -13,8 +13,8 @@ class Mode(Enum):
     PREVIEW = 2
     EXPORT = 3
 
-mode = Mode.PREVIEW
-show_scalar_bar = True
+mode = Mode.EXPORT
+show_scalar_bar = False
 
 output_dir = './frames_pyvista_antartica'
 os.makedirs(output_dir, exist_ok=True)
@@ -49,9 +49,9 @@ camera_path = [
 
 # Remap table
 remap_table = [
-    (-4500, -100, 0.0, 0.25),
-    (-100, 200, 0.25, 0.75),
-    (200, 4000, 0.75, 1.0),
+    (-4500, -500, 0.0, 0.25),
+    (-500, 500, 0.25, 0.75),
+    (500, 4000, 0.75, 1.0),
 ]
 
 def remap_scalar(elev):
