@@ -97,11 +97,14 @@ def generate_plot(label, resolved_level, df, bins):
     fig = go.Figure()
     for taxon in taxa_sorted.index:
         row = grouped.loc[taxon]
+        x_vals = [int(b) for b in row.index]
+        y_vals = [v if v > 1 else None for v in row.values]
         fig.add_trace(go.Scatter(
-            x=[int(b) for b in row.index],
-            y=row.values,
+            x=x_vals,
+            y=y_vals,
             mode='lines+markers',
-            name=str(taxon)
+            name=str(taxon),
+            connectgaps=True
         ))
 
     period_colors = ["#e0f7fa", "#b2ebf2"]
@@ -159,6 +162,7 @@ def generate_plot(label, resolved_level, df, bins):
         yaxis_title="Number of Occurrences",
         xaxis=dict(autorange="reversed", range=[max_ma_data, min_ma_data]),
         yaxis=dict(range=[-0.15, None]),
+        #yaxis=dict(type="log", rangemode="nonnegative"),
         template="plotly_white",
         margin=dict(t=60, b=60),
         legend=dict(traceorder="reversed")
@@ -170,9 +174,15 @@ def generate_plot(label, resolved_level, df, bins):
 
     for suffix, (w, h) in EXPORTS.items():
         scale = w / NATIVE_WIDTH
+        height = NATIVE_HEIGHT
         filename = f"fossil_plot_{label}_{resolved_level}_{suffix}.png"
-        fig.write_image(filename, width=NATIVE_WIDTH, height=NATIVE_HEIGHT, scale=scale)
-        print(f"[Output] Saved {filename} at scale {scale:.2f}")
+        fig.write_image(filename, width=NATIVE_WIDTH, height=height, scale=scale)
+        print(f"[Output] Saved {filename} at {NATIVE_WIDTH}x{height} with scale {scale:.2f}")
+        if suffix == "4k":
+            half_height = NATIVE_HEIGHT // 2
+            filename_half = f"fossil_plot_{label}_{resolved_level}_{suffix}_halfh.png"
+            fig.write_image(filename_half, width=NATIVE_WIDTH, height=half_height, scale=scale)
+            print(f"[Output] Saved {filename_half} at {NATIVE_WIDTH}x{half_height} with scale {scale:.2f}")
 
     return True
 
