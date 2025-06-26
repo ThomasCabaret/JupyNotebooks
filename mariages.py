@@ -1,41 +1,54 @@
 import itertools
 import networkx as nx
 import matplotlib.pyplot as plt
+import pydot
 
-# Unique preference bimatrices P3 and P4
-def get_bimatrices():
-    # Example 3x3 (cycle)
-    P3 = [
-        [(0,1), (2,0), (1,0)],
-        [(1,0), (2,2), (0,1)],
-        [(0,2), (2,1), (1,2)],
-    ]
-    # Example 4x4 (isolated cycle Knuth)
-    P4 = [
-        [(0, 2), (2, 1), (1, 3), (3, 0)],
-        [(3, 0), (0, 2), (2, 1), (1, 3)],
-        [(1, 3), (3, 0), (0, 2), (2, 1)],
-        [(2, 1), (1, 3), (3, 0), (0, 2)]
-    ]
-    # convert to zero-based ranks
-    def to_zero(P):
-        return [[(x-1,y-1) for x,y in row] for row in P]
-    return to_zero(P3), to_zero(P4)
+def format_matching(matching):
+    # Exemple: (1,0,2,3) => "A B C D\nb a c d"
+    top    = " ".join(chr(ord('A') + i) for i in range(len(matching)))
+    bottom = " ".join(chr(ord('a') + w) for w in matching)
+    return f"{top}\n{bottom}"
 
-# extract men and women preference lists from a bimatrix
-def extract_preferences_from_bimatrix(P):
-    n = len(P)
-    pref_m = []
-    for i in range(n):
-        row = [(j, P[i][j][0]) for j in range(n)]  # man's rank of each woman
-        row.sort(key=lambda t: t[1])
-        pref_m.append([j for j, _ in row])
-    pref_w = []
-    for j in range(n):
-        col = [(i, P[i][j][1]) for i in range(n)]  # woman's rank of each man
-        col.sort(key=lambda t: t[1])
-        pref_w.append([i for i, _ in col])
-    return pref_m, pref_w
+def format_preferences(pref_m, pref_w):
+    def fmt(pref, symbols):
+        return [" ".join(symbols[j] for j in row) for row in pref]
+    men = fmt(pref_m, [chr(ord('a') + i) for i in range(len(pref_m))])
+    women = fmt(pref_w, [chr(ord('A') + i) for i in range(len(pref_w))])
+    return "\\n".join([f"{chr(65+i)}: {row}" for i, row in enumerate(men)] +
+                      [f"{chr(97+i)}: {row}" for i, row in enumerate(women)])
+
+def get_preferences(case):
+    if case == '3x3':
+        # This is a standard instance known to contain a cycle of unstable matchings.
+        pref_men = [
+            [0, 2, 1],  # m0: w0 > w2 > w1
+            [2, 0, 1],  # m1: w2 > w0 > w1
+            [0, 2, 1],  # m2: w0 > w2 > w1
+        ]
+        pref_women = [
+            [1, 0, 2],  # w0: m1 > m0 > m2
+            [0, 2, 1],  # w1: m0 > m2 > m1
+            [0, 1, 2],  # w2: m0 > m1 > m2
+        ]
+        return pref_men, pref_women
+    elif case == '4x4':
+        # This is the preference profile you provided in your request.
+        pref_men = [
+            [0, 2, 1, 3],  # m0: w0 > w2 > w1 > w3
+            [1, 3, 2, 0],  # m1: w1 > w3 > w2 > w0
+            [2, 0, 3, 1],  # m2: w2 > w0 > w3 > w1
+            [3, 1, 0, 2],  # m3: w3 > w1 > w0 > w2
+        ]
+        pref_women = [
+            [1, 3, 0, 2],  # w0: m1 > m3 > m0 > m2
+            [2, 0, 1, 3],  # w1: m2 > m0 > m1 > m3
+            [3, 1, 2, 0],  # w2: m3 > m1 > m2 > m0
+            [0, 2, 3, 1],  # w3: m0 > m2 > m3 > m1
+        ]
+        return pref_men, pref_women
+            
+    else:
+        raise ValueError(f"Unknown case requested: '{case}'. Please use '3x3' or '4x4'.")
 
 # generate all complete matchings
 def generate_all_matchings(n):
@@ -69,11 +82,13 @@ def resolve_blocking_pair(matching, pair):
 def build_state_graph(pref_m, pref_w):
     n = len(pref_m)
     G = nx.DiGraph()
-    allm = generate_all_matchings(n)
-    G.add_nodes_from(allm)
-    for m in allm:
-        for pair in find_blocking_pairs(m, pref_m, pref_w):
-            G.add_edge(m, resolve_blocking_pair(m, pair))
+    all_matchings = generate_all_matchings(n)
+    G.add_nodes_from(all_matchings)
+    for matching in all_matchings:
+        for man, woman in find_blocking_pairs(matching, pref_m, pref_w):
+            new_matching = resolve_blocking_pair(matching, (man, woman))
+            label = f"{chr(65 + man)}+{chr(97 + woman)}"
+            G.add_edge(matching, new_matching, label=label)
     return G
 
 # compute node types: red, green, yellow, gray
@@ -99,31 +114,96 @@ def compute_node_types(G):
     return types
 
 # draw with matplotlib and export both png and dot
-def draw_and_export(G, case):
-    # classification
+def draw_and_export(G, case, pref_m, pref_w):
+    # classify nodes
     types = compute_node_types(G)
-    # matplotlib
+
+    # matplotlib drawing
     pos = nx.kamada_kawai_layout(G)
     node_colors = [types[n] for n in G.nodes()]
-    labels = {n: str(n) for n in G.nodes()}
-    plt.figure(figsize=(8,6))
+    labels = {n: format_matching(n) for n in G.nodes()}
+
+    plt.figure(figsize=(8, 6))
     nx.draw_networkx_nodes(G, pos, node_color=node_colors, node_size=600)
     nx.draw_networkx_labels(G, pos, labels, font_size=8)
     nx.draw_networkx_edges(
         G, pos,
         arrowstyle='->', arrowsize=10,
-        connectionstyle='arc3,rad=0.1')
-    plt.axis('off'); plt.tight_layout()
-    plt.savefig(f"state_graph_{case}.png", dpi=300); plt.close()
-    # dot export
+        connectionstyle='arc3,rad=0.1'
+    )
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(f"state_graph_{case}.png", dpi=300)
+    plt.close()
+
+    # export to DOT format (edges already have correct 'label' attribute)
     dot = nx.nx_pydot.to_pydot(G)
+
+    # format nodes in DOT
     for dnode in dot.get_nodes():
         name = dnode.get_name().strip('"')
-        if name:
-            color = types.get(eval(name), 'gray')
-            dnode.set_style('filled')
-            dnode.set_fillcolor(color)
+        if not name:
+            continue
+        node_tuple = eval(name)
+        label = format_matching(node_tuple).replace("\n", "\\n")
+        color = types.get(node_tuple, 'gray')
+        dnode.set_label(label)
+        dnode.set_style('filled')
+        dnode.set_fillcolor(color)
+
+    # add preference matrices as a legend node
+    legend_text = format_preferences(pref_m, pref_w)
+    legend_node = pydot.Node(
+        "legend",
+        label=legend_text,
+        shape="box",
+        style="rounded,filled",
+        fillcolor="lightgrey"
+    )
+    dot.add_node(legend_node)
+
+    # save DOT file
     dot.write(f"state_graph_{case}.dot")
+
+if __name__ == '__main__':
+    for case in ['3x3', '4x4']:
+        pref_m, pref_w = get_preferences(case)
+        G = build_state_graph(pref_m, pref_w)
+        draw_and_export(G, case, pref_m, pref_w)
+        print(f"Graph exported for case: {case}")
+
+def has_isolated_cycle(pref_m, pref_w):
+    """
+    Returns True if the directed state graph built from (pref_m, pref_w)
+    contains a cycle among matchings that cannot reach any stable matching.
+    pref_m: list of lists, pref_m[i] is the list of women (indices) in
+            order of preference for man i.
+    pref_w: list of lists, pref_w[j] is the list of men in order of
+            preference for woman j.
+    """
+    # 1. Build the full state graph of matchings
+    G = build_state_graph(pref_m, pref_w)
+    # 2. Identify stable nodes (no outgoing edges)
+    stable = [n for n in G.nodes() if G.out_degree(n) == 0]
+    if not stable:
+        return False
+    # 3. Find all nodes that CAN reach a stable node
+    #    by reversing the graph and collecting descendants of each stable
+    RG = G.reverse(copy=False)
+    can_reach_stable = set(stable)
+    for s in stable:
+        can_reach_stable |= nx.descendants(RG, s)
+    # 4. The "isolated" nodes are those that cannot reach any stable node
+    isolated = set(G.nodes()) - can_reach_stable
+    if not isolated:
+        return False
+    # 5. Check for any directed cycle within that isolated subgraph
+    sub = G.subgraph(isolated)
+    try:
+        next(nx.simple_cycles(sub))
+        return True
+    except StopIteration:
+        return False
 
 def search_in_non_isomorphic_profiles(checker_function):
     """
@@ -167,48 +247,6 @@ def search_in_non_isomorphic_profiles(checker_function):
                 return final_men_prefs, final_women_prefs
     print("\nFull search space exhausted. No profile with the desired property was found.")
     return None
-
-def has_isolated_cycle(pref_m, pref_w):
-    """
-    Returns True if the directed state graph built from (pref_m, pref_w)
-    contains a cycle among matchings that cannot reach any stable matching.
-    pref_m: list of lists, pref_m[i] is the list of women (indices) in
-            order of preference for man i.
-    pref_w: list of lists, pref_w[j] is the list of men in order of
-            preference for woman j.
-    """
-    # 1. Build the full state graph of matchings
-    G = build_state_graph(pref_m, pref_w)
-    # 2. Identify stable nodes (no outgoing edges)
-    stable = [n for n in G.nodes() if G.out_degree(n) == 0]
-    if not stable:
-        return False
-    # 3. Find all nodes that CAN reach a stable node
-    #    by reversing the graph and collecting descendants of each stable
-    RG = G.reverse(copy=False)
-    can_reach_stable = set(stable)
-    for s in stable:
-        can_reach_stable |= nx.descendants(RG, s)
-    # 4. The "isolated" nodes are those that cannot reach any stable node
-    isolated = set(G.nodes()) - can_reach_stable
-    if not isolated:
-        return False
-    # 5. Check for any directed cycle within that isolated subgraph
-    sub = G.subgraph(isolated)
-    try:
-        next(nx.simple_cycles(sub))
-        return True
-    except StopIteration:
-        return False
-
-if __name__ == '__main__':
-    P3, P4 = get_bimatrices()
-    for name, bimatrix in [('P3', P3), ('P4', P4)]:
-        pref_m, pref_w = extract_preferences_from_bimatrix(bimatrix)
-        G = build_state_graph(pref_m, pref_w)
-        draw_and_export(G, name)
-        print(f"Graph exported for {name}.")
-
 
 # if __name__ == '__main__':
 #     # =========================================================================
