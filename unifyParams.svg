@@ -1,0 +1,517 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1867pt" height="1125pt" viewBox="0.00 0.00 1867.00 1125.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 1121.5)">
+<title>Universe_Hourglass_Refined</title>
+<polygon fill="white" stroke="none" points="-4,4 -4,-1121.5 1863,-1121.5 1863,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_color_legend</title>
+<polygon fill="none" stroke="#7f8c8d" stroke-dasharray="1,5" points="8,-1032.7 8,-1109.5 770,-1109.5 770,-1032.7 8,-1032.7"/>
+<text xml:space="preserve" text-anchor="middle" x="389" y="-1092.9" font-family="Segoe UI, Arial" font-size="14.00">Code Couleur des Paramètres &amp; Théories</text>
+</g>
+<g id="clust5" class="cluster">
+<title>cluster_micro_sectors</title>
+<polygon fill="none" stroke="#aed6f1" stroke-dasharray="5,2" points="701,-920.85 701,-997.65 1063,-997.65 1063,-920.85 701,-920.85"/>
+<text xml:space="preserve" text-anchor="middle" x="882" y="-981.05" font-family="Segoe UI, Arial" font-size="14.00">Secteurs Micro</text>
+</g>
+<g id="clust6" class="cluster">
+<title>cluster_macro_sectors</title>
+<polygon fill="none" stroke="#fad7a0" stroke-dasharray="5,2" points="1257,-920.85 1257,-997.65 1527,-997.65 1527,-920.85 1257,-920.85"/>
+<text xml:space="preserve" text-anchor="middle" x="1392" y="-981.05" font-family="Segoe UI, Arial" font-size="14.00">Secteurs Macro</text>
+</g>
+<g id="clust7" class="cluster">
+<title>cluster_naive</title>
+<polygon fill="#f4f6f6" stroke="#bdc3c7" points="716,-821.05 716,-897.85 1462,-897.85 1462,-821.05 716,-821.05"/>
+<text xml:space="preserve" text-anchor="middle" x="1089" y="-881.25" font-family="Segoe UI, Arial" font-size="14.00">VUE NAÏVE (Variables mathématiques)</text>
+</g>
+<g id="clust10" class="cluster">
+<title>cluster_reduced</title>
+<polygon fill="#d1f2eb" stroke="#16a085" points="470,-689.25 470,-798.05 1851,-798.05 1851,-689.25 470,-689.25"/>
+<text xml:space="preserve" text-anchor="middle" x="1160.5" y="-781.45" font-family="Segoe UI, Arial" font-size="14.00">RÉDUCTION PHYSIQUE (Paramètres mesurés)</text>
+</g>
+<g id="clust16" class="cluster">
+<title>cluster_theories</title>
+<polygon fill="#fef9e7" stroke="#f1c40f" points="609,-482.65 609,-666.25 1247,-666.25 1247,-482.65 609,-482.65"/>
+<text xml:space="preserve" text-anchor="middle" x="928" y="-649.65" font-family="Segoe UI, Arial" font-size="14.00">UNIFICATION THÉORIQUE</text>
+</g>
+<!-- C_True -->
+<g id="node1" class="node">
+<title>C_True</title>
+<path fill="#fcf3cf" stroke="#2c3e50" d="M155.76,-1076.7C155.76,-1076.7 28.24,-1076.7 28.24,-1076.7 22.24,-1076.7 16.24,-1070.7 16.24,-1064.7 16.24,-1064.7 16.24,-1052.7 16.24,-1052.7 16.24,-1046.7 22.24,-1040.7 28.24,-1040.7 28.24,-1040.7 155.76,-1040.7 155.76,-1040.7 161.76,-1040.7 167.76,-1046.7 167.76,-1052.7 167.76,-1052.7 167.76,-1064.7 167.76,-1064.7 167.76,-1070.7 161.76,-1076.7 155.76,-1076.7"/>
+<text xml:space="preserve" text-anchor="middle" x="92" y="-1061.7" font-family="Segoe UI" font-size="10.00">Vraie Constante Adimensionnelle</text>
+<text xml:space="preserve" text-anchor="middle" x="92" y="-1049.7" font-family="Segoe UI" font-size="10.00">(Angles, Phases, n_s)</text>
+</g>
+<!-- C_Run -->
+<g id="node2" class="node">
+<title>C_Run</title>
+<path fill="#e8daef" stroke="#2c3e50" d="M327.18,-1076.7C327.18,-1076.7 208.82,-1076.7 208.82,-1076.7 202.82,-1076.7 196.82,-1070.7 196.82,-1064.7 196.82,-1064.7 196.82,-1052.7 196.82,-1052.7 196.82,-1046.7 202.82,-1040.7 208.82,-1040.7 208.82,-1040.7 327.18,-1040.7 327.18,-1040.7 333.18,-1040.7 339.18,-1046.7 339.18,-1052.7 339.18,-1052.7 339.18,-1064.7 339.18,-1064.7 339.18,-1070.7 333.18,-1076.7 327.18,-1076.7"/>
+<text xml:space="preserve" text-anchor="middle" x="268" y="-1061.7" font-family="Segoe UI" font-size="10.00">Constante 'Courante' (Running)</text>
+<text xml:space="preserve" text-anchor="middle" x="268" y="-1049.7" font-family="Segoe UI" font-size="10.00">(Dépend de l'échelle µ)</text>
+</g>
+<!-- C_Dim -->
+<g id="node3" class="node">
+<title>C_Dim</title>
+<path fill="#ffffff" stroke="#2c3e50" d="M471.85,-1076.7C471.85,-1076.7 380.15,-1076.7 380.15,-1076.7 374.15,-1076.7 368.15,-1070.7 368.15,-1064.7 368.15,-1064.7 368.15,-1052.7 368.15,-1052.7 368.15,-1046.7 374.15,-1040.7 380.15,-1040.7 380.15,-1040.7 471.85,-1040.7 471.85,-1040.7 477.85,-1040.7 483.85,-1046.7 483.85,-1052.7 483.85,-1052.7 483.85,-1064.7 483.85,-1064.7 483.85,-1070.7 477.85,-1076.7 471.85,-1076.7"/>
+<text xml:space="preserve" text-anchor="middle" x="426" y="-1061.7" font-family="Segoe UI" font-size="10.00">Paramètre Dimensionnel</text>
+<text xml:space="preserve" text-anchor="middle" x="426" y="-1049.7" font-family="Segoe UI" font-size="10.00">(Masses, échelles)</text>
+</g>
+<!-- T_High -->
+<g id="node4" class="node">
+<title>T_High</title>
+<path fill="#d6eaf8" stroke="#2e86c1" d="M623.19,-1076.7C623.19,-1076.7 524.81,-1076.7 524.81,-1076.7 518.81,-1076.7 512.81,-1070.7 512.81,-1064.7 512.81,-1064.7 512.81,-1052.7 512.81,-1052.7 512.81,-1046.7 518.81,-1040.7 524.81,-1040.7 524.81,-1040.7 623.19,-1040.7 623.19,-1040.7 629.19,-1040.7 635.19,-1046.7 635.19,-1052.7 635.19,-1052.7 635.19,-1064.7 635.19,-1064.7 635.19,-1070.7 629.19,-1076.7 623.19,-1076.7"/>
+<text xml:space="preserve" text-anchor="middle" x="574" y="-1055.7" font-family="Segoe UI" font-size="10.00">Théorie à Haut Consensus</text>
+</g>
+<!-- T_Spec -->
+<g id="node5" class="node">
+<title>T_Spec</title>
+<path fill="#f5eef8" stroke="#8e44ad" d="M749.68,-1076.7C749.68,-1076.7 676.32,-1076.7 676.32,-1076.7 670.32,-1076.7 664.32,-1070.7 664.32,-1064.7 664.32,-1064.7 664.32,-1052.7 664.32,-1052.7 664.32,-1046.7 670.32,-1040.7 676.32,-1040.7 676.32,-1040.7 749.68,-1040.7 749.68,-1040.7 755.68,-1040.7 761.68,-1046.7 761.68,-1052.7 761.68,-1052.7 761.68,-1064.7 761.68,-1064.7 761.68,-1070.7 755.68,-1076.7 749.68,-1076.7"/>
+<text xml:space="preserve" text-anchor="middle" x="713" y="-1055.7" font-family="Segoe UI" font-size="10.00">Théorie Spéculative</text>
+</g>
+<!-- MICRO_ROOT -->
+<g id="node6" class="node">
+<title>MICRO_ROOT</title>
+<path fill="#2e86c1" stroke="#2c3e50" d="M974.7,-1065.02C974.7,-1065.02 946.65,-1082.42 946.65,-1082.42 941.55,-1085.58 930.45,-1088.75 924.45,-1088.75 924.45,-1088.75 851.55,-1088.75 851.55,-1088.75 845.55,-1088.75 834.45,-1085.58 829.35,-1082.42 829.35,-1082.42 801.3,-1065.02 801.3,-1065.02 796.2,-1061.86 796.2,-1055.54 801.3,-1052.38 801.3,-1052.38 829.35,-1034.98 829.35,-1034.98 834.45,-1031.82 845.55,-1028.65 851.55,-1028.65 851.55,-1028.65 924.45,-1028.65 924.45,-1028.65 930.45,-1028.65 941.55,-1031.82 946.65,-1034.98 946.65,-1034.98 974.7,-1052.38 974.7,-1052.38 979.8,-1055.54 979.8,-1061.86 974.7,-1065.02"/>
+<text xml:space="preserve" text-anchor="middle" x="888" y="-1062.3" font-family="Segoe UI" font-size="12.00" fill="white">MICRO-PHYSIQUE</text>
+<text xml:space="preserve" text-anchor="middle" x="888" y="-1047.9" font-family="Segoe UI" font-size="12.00" fill="white">(Modèle Standard)</text>
+</g>
+<!-- GAUGE_S -->
+<g id="node8" class="node">
+<title>GAUGE_S</title>
+<path fill="#fdfefe" stroke="#2c3e50" d="M917.6,-964.85C917.6,-964.85 858.4,-964.85 858.4,-964.85 852.4,-964.85 846.4,-958.85 846.4,-952.85 846.4,-952.85 846.4,-940.85 846.4,-940.85 846.4,-934.85 852.4,-928.85 858.4,-928.85 858.4,-928.85 917.6,-928.85 917.6,-928.85 923.6,-928.85 929.6,-934.85 929.6,-940.85 929.6,-940.85 929.6,-952.85 929.6,-952.85 929.6,-958.85 923.6,-964.85 917.6,-964.85"/>
+<text xml:space="preserve" text-anchor="middle" x="888" y="-949.85" font-family="Segoe UI" font-size="10.00">Secteur de Jauge</text>
+<text xml:space="preserve" text-anchor="middle" x="888" y="-937.85" font-family="Segoe UI" font-size="10.00">(Forces)</text>
+</g>
+<!-- MICRO_ROOT&#45;&gt;GAUGE_S -->
+<g id="edge1" class="edge">
+<title>MICRO_ROOT-&gt;GAUGE_S</title>
+<path fill="none" stroke="#aed6f1" d="M886.52,-1028.29C886.3,-1016.91 886.53,-1003.43 887.22,-976.43"/>
+<polygon fill="#aed6f1" stroke="#aed6f1" points="890.72,-976.54 887.48,-966.45 883.72,-976.36 890.72,-976.54"/>
+</g>
+<!-- HIGGS_S -->
+<g id="node9" class="node">
+<title>HIGGS_S</title>
+<path fill="#fdfefe" stroke="#2c3e50" d="M805.1,-964.85C805.1,-964.85 720.9,-964.85 720.9,-964.85 714.9,-964.85 708.9,-958.85 708.9,-952.85 708.9,-952.85 708.9,-940.85 708.9,-940.85 708.9,-934.85 714.9,-928.85 720.9,-928.85 720.9,-928.85 805.1,-928.85 805.1,-928.85 811.1,-928.85 817.1,-934.85 817.1,-940.85 817.1,-940.85 817.1,-952.85 817.1,-952.85 817.1,-958.85 811.1,-964.85 805.1,-964.85"/>
+<text xml:space="preserve" text-anchor="middle" x="763" y="-949.85" font-family="Segoe UI" font-size="10.00">Secteur de Higgs</text>
+<text xml:space="preserve" text-anchor="middle" x="763" y="-937.85" font-family="Segoe UI" font-size="10.00">(Mécanisme de masse)</text>
+</g>
+<!-- MICRO_ROOT&#45;&gt;HIGGS_S -->
+<g id="edge2" class="edge">
+<title>MICRO_ROOT-&gt;HIGGS_S</title>
+<path fill="none" stroke="#aed6f1" d="M829.25,-1034.64C812.96,-1023.76 801.25,-1007.88 780.28,-974.61"/>
+<polygon fill="#aed6f1" stroke="#aed6f1" points="783.5,-973.17 775.23,-966.55 777.57,-976.89 783.5,-973.17"/>
+</g>
+<!-- FLAVOR_S -->
+<g id="node10" class="node">
+<title>FLAVOR_S</title>
+<path fill="#fdfefe" stroke="#2c3e50" d="M1042.98,-964.85C1042.98,-964.85 971.02,-964.85 971.02,-964.85 965.02,-964.85 959.02,-958.85 959.02,-952.85 959.02,-952.85 959.02,-940.85 959.02,-940.85 959.02,-934.85 965.02,-928.85 971.02,-928.85 971.02,-928.85 1042.98,-928.85 1042.98,-928.85 1048.98,-928.85 1054.98,-934.85 1054.98,-940.85 1054.98,-940.85 1054.98,-952.85 1054.98,-952.85 1054.98,-958.85 1048.98,-964.85 1042.98,-964.85"/>
+<text xml:space="preserve" text-anchor="middle" x="1007" y="-949.85" font-family="Segoe UI" font-size="10.00">Secteur de Saveur</text>
+<text xml:space="preserve" text-anchor="middle" x="1007" y="-937.85" font-family="Segoe UI" font-size="10.00">(Matière/particules)</text>
+</g>
+<!-- MICRO_ROOT&#45;&gt;FLAVOR_S -->
+<g id="edge3" class="edge">
+<title>MICRO_ROOT-&gt;FLAVOR_S</title>
+<path fill="none" stroke="#aed6f1" d="M942.87,-1032.14C956.36,-1021.34 968.12,-1005.49 988.57,-974.8"/>
+<polygon fill="#aed6f1" stroke="#aed6f1" points="991.44,-976.8 994.05,-966.53 985.61,-972.93 991.44,-976.8"/>
+</g>
+<!-- MACRO_ROOT -->
+<g id="node7" class="node">
+<title>MACRO_ROOT</title>
+<path fill="#d35400" stroke="#2c3e50" d="M1473.4,-1064.85C1473.4,-1064.85 1443.66,-1082.6 1443.66,-1082.6 1438.51,-1085.67 1427.35,-1088.75 1421.35,-1088.75 1421.35,-1088.75 1344.65,-1088.75 1344.65,-1088.75 1338.65,-1088.75 1327.49,-1085.67 1322.34,-1082.6 1322.34,-1082.6 1292.6,-1064.85 1292.6,-1064.85 1287.44,-1061.77 1287.44,-1055.63 1292.6,-1052.55 1292.6,-1052.55 1322.34,-1034.8 1322.34,-1034.8 1327.49,-1031.73 1338.65,-1028.65 1344.65,-1028.65 1344.65,-1028.65 1421.35,-1028.65 1421.35,-1028.65 1427.35,-1028.65 1438.51,-1031.73 1443.66,-1034.8 1443.66,-1034.8 1473.4,-1052.55 1473.4,-1052.55 1478.56,-1055.63 1478.56,-1061.77 1473.4,-1064.85"/>
+<text xml:space="preserve" text-anchor="middle" x="1383" y="-1062.3" font-family="Segoe UI" font-size="12.00" fill="white">MACRO-PHYSIQUE</text>
+<text xml:space="preserve" text-anchor="middle" x="1383" y="-1047.9" font-family="Segoe UI" font-size="12.00" fill="white">(RG + Cosmologie)</text>
+</g>
+<!-- GRAV_S -->
+<g id="node11" class="node">
+<title>GRAV_S</title>
+<path fill="#fdfefe" stroke="#2c3e50" d="M1314.77,-964.85C1314.77,-964.85 1277.23,-964.85 1277.23,-964.85 1271.23,-964.85 1265.23,-958.85 1265.23,-952.85 1265.23,-952.85 1265.23,-940.85 1265.23,-940.85 1265.23,-934.85 1271.23,-928.85 1277.23,-928.85 1277.23,-928.85 1314.77,-928.85 1314.77,-928.85 1320.77,-928.85 1326.77,-934.85 1326.77,-940.85 1326.77,-940.85 1326.77,-952.85 1326.77,-952.85 1326.77,-958.85 1320.77,-964.85 1314.77,-964.85"/>
+<text xml:space="preserve" text-anchor="middle" x="1296" y="-943.85" font-family="Segoe UI" font-size="10.00">Gravitation</text>
+</g>
+<!-- MACRO_ROOT&#45;&gt;GRAV_S -->
+<g id="edge4" class="edge">
+<title>MACRO_ROOT-&gt;GRAV_S</title>
+<path fill="none" stroke="#fad7a0" d="M1361.56,-1028.41C1352.51,-1016.27 1341.48,-1002.56 1317.85,-973.6"/>
+<polygon fill="#fad7a0" stroke="#fad7a0" points="1320.84,-971.72 1311.8,-966.19 1315.41,-976.15 1320.84,-971.72"/>
+</g>
+<!-- VAC_S -->
+<g id="node12" class="node">
+<title>VAC_S</title>
+<path fill="#fdfefe" stroke="#2c3e50" d="M1507.21,-964.85C1507.21,-964.85 1450.79,-964.85 1450.79,-964.85 1444.79,-964.85 1438.79,-958.85 1438.79,-952.85 1438.79,-952.85 1438.79,-940.85 1438.79,-940.85 1438.79,-934.85 1444.79,-928.85 1450.79,-928.85 1450.79,-928.85 1507.21,-928.85 1507.21,-928.85 1513.21,-928.85 1519.21,-934.85 1519.21,-940.85 1519.21,-940.85 1519.21,-952.85 1519.21,-952.85 1519.21,-958.85 1513.21,-964.85 1507.21,-964.85"/>
+<text xml:space="preserve" text-anchor="middle" x="1479" y="-943.85" font-family="Segoe UI" font-size="10.00">Énergie du Vide</text>
+</g>
+<!-- MACRO_ROOT&#45;&gt;VAC_S -->
+<g id="edge5" class="edge">
+<title>MACRO_ROOT-&gt;VAC_S</title>
+<path fill="none" stroke="#fad7a0" d="M1434.71,-1029.25C1451.31,-1016.85 1458.6,-1003.82 1468.84,-975.86"/>
+<polygon fill="#fad7a0" stroke="#fad7a0" points="1472.03,-977.34 1472.1,-966.75 1465.44,-974.99 1472.03,-977.34"/>
+</g>
+<!-- COSMO_S -->
+<g id="node13" class="node">
+<title>COSMO_S</title>
+<path fill="#fdfefe" stroke="#2c3e50" d="M1398,-964.85C1398,-964.85 1368,-964.85 1368,-964.85 1362,-964.85 1356,-958.85 1356,-952.85 1356,-952.85 1356,-940.85 1356,-940.85 1356,-934.85 1362,-928.85 1368,-928.85 1368,-928.85 1398,-928.85 1398,-928.85 1404,-928.85 1410,-934.85 1410,-940.85 1410,-940.85 1410,-952.85 1410,-952.85 1410,-958.85 1404,-964.85 1398,-964.85"/>
+<text xml:space="preserve" text-anchor="middle" x="1383" y="-943.85" font-family="Segoe UI" font-size="10.00">ΛCDM</text>
+</g>
+<!-- MACRO_ROOT&#45;&gt;COSMO_S -->
+<g id="edge6" class="edge">
+<title>MACRO_ROOT-&gt;COSMO_S</title>
+<path fill="none" stroke="#fad7a0" d="M1393.51,-1028.42C1396.41,-1015.01 1395.04,-1002.68 1389.39,-975.93"/>
+<polygon fill="#fad7a0" stroke="#fad7a0" points="1392.87,-975.46 1387.34,-966.43 1386.03,-976.94 1392.87,-975.46"/>
+</g>
+<!-- N_G -->
+<g id="node14" class="node">
+<title>N_G</title>
+<path fill="#ebedef" stroke="#2c3e50" d="M907.06,-865.05C907.06,-865.05 838.94,-865.05 838.94,-865.05 832.94,-865.05 826.94,-859.05 826.94,-853.05 826.94,-853.05 826.94,-841.05 826.94,-841.05 826.94,-835.05 832.94,-829.05 838.94,-829.05 838.94,-829.05 907.06,-829.05 907.06,-829.05 913.06,-829.05 919.06,-835.05 919.06,-841.05 919.06,-841.05 919.06,-853.05 919.06,-853.05 919.06,-859.05 913.06,-865.05 907.06,-865.05"/>
+<text xml:space="preserve" text-anchor="middle" x="873" y="-850.05" font-family="Segoe UI" font-size="10.00">g1, g2, g3, θ_QCD</text>
+<text xml:space="preserve" text-anchor="middle" x="873" y="-838.05" font-family="Segoe UI" font-size="10.00">(4 paramètres)</text>
+</g>
+<!-- GAUGE_S&#45;&gt;N_G -->
+<g id="edge7" class="edge">
+<title>GAUGE_S-&gt;N_G</title>
+<path fill="none" stroke="#7f8c8d" d="M881.92,-928.46C878.35,-916.13 877.03,-905.47 875,-876.85"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="878.5,-876.7 874.32,-866.96 871.52,-877.18 878.5,-876.7"/>
+</g>
+<!-- N_H -->
+<g id="node15" class="node">
+<title>N_H</title>
+<path fill="#ebedef" stroke="#2c3e50" d="M786.29,-865.05C786.29,-865.05 735.71,-865.05 735.71,-865.05 729.71,-865.05 723.71,-859.05 723.71,-853.05 723.71,-853.05 723.71,-841.05 723.71,-841.05 723.71,-835.05 729.71,-829.05 735.71,-829.05 735.71,-829.05 786.29,-829.05 786.29,-829.05 792.29,-829.05 798.29,-835.05 798.29,-841.05 798.29,-841.05 798.29,-853.05 798.29,-853.05 798.29,-859.05 792.29,-865.05 786.29,-865.05"/>
+<text xml:space="preserve" text-anchor="middle" x="761" y="-850.05" font-family="Segoe UI" font-size="10.00">µ², λ</text>
+<text xml:space="preserve" text-anchor="middle" x="761" y="-838.05" font-family="Segoe UI" font-size="10.00">(2 paramètres)</text>
+</g>
+<!-- HIGGS_S&#45;&gt;N_H -->
+<g id="edge8" class="edge">
+<title>HIGGS_S-&gt;N_H</title>
+<path fill="none" stroke="#7f8c8d" d="M757.73,-928.6C754.49,-915.13 754.61,-904.88 757.64,-876.6"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="761.1,-877.15 758.73,-866.83 754.15,-876.38 761.1,-877.15"/>
+</g>
+<!-- N_Q -->
+<g id="node16" class="node">
+<title>N_Q</title>
+<path fill="#fadbd8" stroke="#2c3e50" d="M1060.42,-865.05C1060.42,-865.05 959.58,-865.05 959.58,-865.05 953.58,-865.05 947.58,-859.05 947.58,-853.05 947.58,-853.05 947.58,-841.05 947.58,-841.05 947.58,-835.05 953.58,-829.05 959.58,-829.05 959.58,-829.05 1060.42,-829.05 1060.42,-829.05 1066.42,-829.05 1072.42,-835.05 1072.42,-841.05 1072.42,-841.05 1072.42,-853.05 1072.42,-853.05 1072.42,-859.05 1066.42,-865.05 1060.42,-865.05"/>
+<text xml:space="preserve" text-anchor="middle" x="1010" y="-850.05" font-family="Segoe UI" font-size="10.00">Matrices Yukawa (Quarks)</text>
+<text xml:space="preserve" text-anchor="middle" x="1010" y="-838.05" font-family="Segoe UI" font-size="10.00">Yu, Yd : 36 params bruts</text>
+</g>
+<!-- FLAVOR_S&#45;&gt;N_Q -->
+<g id="edge9" class="edge">
+<title>FLAVOR_S-&gt;N_Q</title>
+<path fill="none" stroke="#7f8c8d" d="M1010.41,-928.41C1012.31,-915.83 1012.4,-905.27 1011.27,-876.75"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1014.77,-876.76 1010.86,-866.91 1007.78,-877.05 1014.77,-876.76"/>
+</g>
+<!-- N_L -->
+<g id="node17" class="node">
+<title>N_L</title>
+<path fill="#fadbd8" stroke="#2c3e50" d="M1218.09,-865.05C1218.09,-865.05 1113.91,-865.05 1113.91,-865.05 1107.91,-865.05 1101.91,-859.05 1101.91,-853.05 1101.91,-853.05 1101.91,-841.05 1101.91,-841.05 1101.91,-835.05 1107.91,-829.05 1113.91,-829.05 1113.91,-829.05 1218.09,-829.05 1218.09,-829.05 1224.09,-829.05 1230.09,-835.05 1230.09,-841.05 1230.09,-841.05 1230.09,-853.05 1230.09,-853.05 1230.09,-859.05 1224.09,-865.05 1218.09,-865.05"/>
+<text xml:space="preserve" text-anchor="middle" x="1166" y="-850.05" font-family="Segoe UI" font-size="10.00">Matrices Yukawa (Leptons)</text>
+<text xml:space="preserve" text-anchor="middle" x="1166" y="-838.05" font-family="Segoe UI" font-size="10.00">Ye, Yν : 36 params bruts</text>
+</g>
+<!-- FLAVOR_S&#45;&gt;N_L -->
+<g id="edge10" class="edge">
+<title>FLAVOR_S-&gt;N_L</title>
+<path fill="none" stroke="#7f8c8d" d="M1055.35,-938.16C1097.29,-929.09 1111.28,-917.85 1145,-874.53"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1147.76,-876.68 1151.1,-866.62 1142.22,-872.4 1147.76,-876.68"/>
+</g>
+<!-- N_GR -->
+<g id="node18" class="node">
+<title>N_GR</title>
+<path fill="#fdebd0" stroke="#2c3e50" d="M1321.29,-865.05C1321.29,-865.05 1270.71,-865.05 1270.71,-865.05 1264.71,-865.05 1258.71,-859.05 1258.71,-853.05 1258.71,-853.05 1258.71,-841.05 1258.71,-841.05 1258.71,-835.05 1264.71,-829.05 1270.71,-829.05 1270.71,-829.05 1321.29,-829.05 1321.29,-829.05 1327.29,-829.05 1333.29,-835.05 1333.29,-841.05 1333.29,-841.05 1333.29,-853.05 1333.29,-853.05 1333.29,-859.05 1327.29,-865.05 1321.29,-865.05"/>
+<text xml:space="preserve" text-anchor="middle" x="1296" y="-850.05" font-family="Segoe UI" font-size="10.00">G, c</text>
+<text xml:space="preserve" text-anchor="middle" x="1296" y="-838.05" font-family="Segoe UI" font-size="10.00">(2 paramètres)</text>
+</g>
+<!-- GRAV_S&#45;&gt;N_GR -->
+<g id="edge11" class="edge">
+<title>GRAV_S-&gt;N_GR</title>
+<path fill="none" stroke="#7f8c8d" d="M1303.12,-928.36C1308.46,-912.61 1308.29,-902.89 1302.61,-876.26"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1306.06,-875.67 1300.49,-866.66 1299.23,-877.18 1306.06,-875.67"/>
+</g>
+<!-- N_LCDM -->
+<g id="node19" class="node">
+<title>N_LCDM</title>
+<path fill="#fdebd0" stroke="#2c3e50" d="M1441.63,-865.05C1441.63,-865.05 1374.37,-865.05 1374.37,-865.05 1368.37,-865.05 1362.37,-859.05 1362.37,-853.05 1362.37,-853.05 1362.37,-841.05 1362.37,-841.05 1362.37,-835.05 1368.37,-829.05 1374.37,-829.05 1374.37,-829.05 1441.63,-829.05 1441.63,-829.05 1447.63,-829.05 1453.63,-835.05 1453.63,-841.05 1453.63,-841.05 1453.63,-853.05 1453.63,-853.05 1453.63,-859.05 1447.63,-865.05 1441.63,-865.05"/>
+<text xml:space="preserve" text-anchor="middle" x="1408" y="-850.05" font-family="Segoe UI" font-size="10.00">Paramètres ΛCDM</text>
+<text xml:space="preserve" text-anchor="middle" x="1408" y="-838.05" font-family="Segoe UI" font-size="10.00">(6 paramètres)</text>
+</g>
+<!-- VAC_S&#45;&gt;N_LCDM -->
+<g id="edge12" class="edge">
+<title>VAC_S-&gt;N_LCDM</title>
+<path fill="none" stroke="#7f8c8d" d="M1471.24,-928.63C1463.71,-912.2 1456.54,-902.44 1431.57,-873.83"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1434.26,-871.59 1425.04,-866.38 1429,-876.21 1434.26,-871.59"/>
+</g>
+<!-- COSMO_S&#45;&gt;N_LCDM -->
+<g id="edge13" class="edge">
+<title>COSMO_S-&gt;N_LCDM</title>
+<path fill="none" stroke="#7f8c8d" d="M1396.71,-928.6C1408.36,-911.96 1410.76,-902.43 1409.76,-876.65"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1413.27,-876.79 1409.27,-866.98 1406.28,-877.15 1413.27,-876.79"/>
+</g>
+<!-- R_G_run -->
+<g id="node20" class="node">
+<title>R_G_run</title>
+<path fill="#e8daef" stroke="#2c3e50" d="M737.55,-753.25C737.55,-753.25 704.45,-753.25 704.45,-753.25 698.45,-753.25 692.45,-747.25 692.45,-741.25 692.45,-741.25 692.45,-721.25 692.45,-721.25 692.45,-715.25 698.45,-709.25 704.45,-709.25 704.45,-709.25 737.55,-709.25 737.55,-709.25 743.55,-709.25 749.55,-715.25 749.55,-721.25 749.55,-721.25 749.55,-741.25 749.55,-741.25 749.55,-747.25 743.55,-753.25 737.55,-753.25"/>
+<text xml:space="preserve" text-anchor="middle" x="721" y="-740.25" font-family="Segoe UI" font-size="10.00">g1, g2, g3</text>
+<text xml:space="preserve" text-anchor="middle" x="721" y="-728.25" font-family="Segoe UI" font-size="10.00">(Running)</text>
+<text xml:space="preserve" text-anchor="middle" x="721" y="-716.25" font-family="Segoe UI" font-size="10.00">(3)</text>
+</g>
+<!-- N_G&#45;&gt;R_G_run -->
+<g id="edge14" class="edge">
+<title>N_G-&gt;R_G_run</title>
+<path fill="none" stroke="#7f8c8d" d="M826.68,-834.4C784.23,-821.35 770.89,-809.17 741.18,-763.21"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="744.16,-761.37 735.83,-754.83 738.27,-765.14 744.16,-761.37"/>
+</g>
+<!-- R_G_fix -->
+<g id="node21" class="node">
+<title>R_G_fix</title>
+<path fill="#fcf3cf" stroke="#2c3e50" d="M851.72,-753.25C851.72,-753.25 790.28,-753.25 790.28,-753.25 784.28,-753.25 778.28,-747.25 778.28,-741.25 778.28,-741.25 778.28,-721.25 778.28,-721.25 778.28,-715.25 784.28,-709.25 790.28,-709.25 790.28,-709.25 851.72,-709.25 851.72,-709.25 857.72,-709.25 863.72,-715.25 863.72,-721.25 863.72,-721.25 863.72,-741.25 863.72,-741.25 863.72,-747.25 857.72,-753.25 851.72,-753.25"/>
+<text xml:space="preserve" text-anchor="middle" x="821" y="-740.25" font-family="Segoe UI" font-size="10.00">θ_QCD (CP fort)</text>
+<text xml:space="preserve" text-anchor="middle" x="821" y="-728.25" font-family="Segoe UI" font-size="10.00">(Fixe)</text>
+<text xml:space="preserve" text-anchor="middle" x="821" y="-716.25" font-family="Segoe UI" font-size="10.00">(1)</text>
+</g>
+<!-- N_G&#45;&gt;R_G_fix -->
+<g id="edge15" class="edge">
+<title>N_G-&gt;R_G_fix</title>
+<path fill="none" stroke="#7f8c8d" d="M855,-828.7C841.17,-813.24 836.49,-801.34 828.24,-764.71"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="831.71,-764.19 826.14,-755.17 824.88,-765.69 831.71,-764.19"/>
+</g>
+<!-- R_H_run -->
+<g id="node22" class="node">
+<title>R_H_run</title>
+<path fill="#e8daef" stroke="#2c3e50" d="M651.55,-753.25C651.55,-753.25 618.45,-753.25 618.45,-753.25 612.45,-753.25 606.45,-747.25 606.45,-741.25 606.45,-741.25 606.45,-721.25 606.45,-721.25 606.45,-715.25 612.45,-709.25 618.45,-709.25 618.45,-709.25 651.55,-709.25 651.55,-709.25 657.55,-709.25 663.55,-715.25 663.55,-721.25 663.55,-721.25 663.55,-741.25 663.55,-741.25 663.55,-747.25 657.55,-753.25 651.55,-753.25"/>
+<text xml:space="preserve" text-anchor="middle" x="635" y="-740.25" font-family="Segoe UI" font-size="10.00">λ</text>
+<text xml:space="preserve" text-anchor="middle" x="635" y="-728.25" font-family="Segoe UI" font-size="10.00">(Running)</text>
+<text xml:space="preserve" text-anchor="middle" x="635" y="-716.25" font-family="Segoe UI" font-size="10.00">(1)</text>
+</g>
+<!-- N_H&#45;&gt;R_H_run -->
+<g id="edge16" class="edge">
+<title>N_H-&gt;R_H_run</title>
+<path fill="none" stroke="#7f8c8d" d="M723.46,-832.2C682.09,-814.89 670.77,-804 650.66,-763.86"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="653.85,-762.42 646.3,-754.98 647.57,-765.5 653.85,-762.42"/>
+</g>
+<!-- R_H_dim -->
+<g id="node23" class="node">
+<title>R_H_dim</title>
+<path fill="#fcf3cf" stroke="#2c3e50" d="M565.79,-753.25C565.79,-753.25 490.21,-753.25 490.21,-753.25 484.21,-753.25 478.21,-747.25 478.21,-741.25 478.21,-741.25 478.21,-721.25 478.21,-721.25 478.21,-715.25 484.21,-709.25 490.21,-709.25 490.21,-709.25 565.79,-709.25 565.79,-709.25 571.79,-709.25 577.79,-715.25 577.79,-721.25 577.79,-721.25 577.79,-741.25 577.79,-741.25 577.79,-747.25 571.79,-753.25 565.79,-753.25"/>
+<text xml:space="preserve" text-anchor="middle" x="528" y="-740.25" font-family="Segoe UI" font-size="10.00">v/µ0</text>
+<text xml:space="preserve" text-anchor="middle" x="528" y="-728.25" font-family="Segoe UI" font-size="10.00">(Échelle VEV adim.)</text>
+<text xml:space="preserve" text-anchor="middle" x="528" y="-716.25" font-family="Segoe UI" font-size="10.00">(1)</text>
+</g>
+<!-- N_H&#45;&gt;R_H_dim -->
+<g id="edge17" class="edge">
+<title>N_H-&gt;R_H_dim</title>
+<path fill="none" stroke="#7f8c8d" d="M723.48,-840.98C620.47,-823.99 601.42,-816.28 554.2,-762.13"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="556.86,-759.85 547.68,-754.56 551.56,-764.42 556.86,-759.85"/>
+</g>
+<!-- R_Q_mass -->
+<g id="node24" class="node">
+<title>R_Q_mass</title>
+<path fill="#e8daef" stroke="#2c3e50" d="M1189.79,-749.25C1189.79,-749.25 1054.21,-749.25 1054.21,-749.25 1048.21,-749.25 1042.21,-743.25 1042.21,-737.25 1042.21,-737.25 1042.21,-725.25 1042.21,-725.25 1042.21,-719.25 1048.21,-713.25 1054.21,-713.25 1054.21,-713.25 1189.79,-713.25 1189.79,-713.25 1195.79,-713.25 1201.79,-719.25 1201.79,-725.25 1201.79,-725.25 1201.79,-737.25 1201.79,-737.25 1201.79,-743.25 1195.79,-749.25 1189.79,-749.25"/>
+<text xml:space="preserve" text-anchor="middle" x="1122" y="-734.25" font-family="Segoe UI" font-size="10.00">Yukawas quarks → masses relatives</text>
+<text xml:space="preserve" text-anchor="middle" x="1122" y="-722.25" font-family="Segoe UI" font-size="10.00">(6)</text>
+</g>
+<!-- N_Q&#45;&gt;R_Q_mass -->
+<g id="edge18" class="edge">
+<title>N_Q-&gt;R_Q_mass</title>
+<path fill="none" stroke="#7f8c8d" d="M1051.72,-828.66C1079.28,-814.58 1088.94,-801.26 1108.72,-759.74"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1111.79,-761.42 1112.89,-750.88 1105.46,-758.43 1111.79,-761.42"/>
+</g>
+<!-- R_Q_mix -->
+<g id="node25" class="node">
+<title>R_Q_mix</title>
+<path fill="#fcf3cf" stroke="#2c3e50" d="M1001.26,-749.25C1001.26,-749.25 904.74,-749.25 904.74,-749.25 898.74,-749.25 892.74,-743.25 892.74,-737.25 892.74,-737.25 892.74,-725.25 892.74,-725.25 892.74,-719.25 898.74,-713.25 904.74,-713.25 904.74,-713.25 1001.26,-713.25 1001.26,-713.25 1007.26,-713.25 1013.26,-719.25 1013.26,-725.25 1013.26,-725.25 1013.26,-737.25 1013.26,-737.25 1013.26,-743.25 1007.26,-749.25 1001.26,-749.25"/>
+<text xml:space="preserve" text-anchor="middle" x="953" y="-734.25" font-family="Segoe UI" font-size="10.00">CKM : 3 angles + 1 phase</text>
+<text xml:space="preserve" text-anchor="middle" x="953" y="-722.25" font-family="Segoe UI" font-size="10.00">(4)</text>
+</g>
+<!-- N_Q&#45;&gt;R_Q_mix -->
+<g id="edge19" class="edge">
+<title>N_Q-&gt;R_Q_mix</title>
+<path fill="none" stroke="#7f8c8d" d="M997.52,-828.79C987.51,-813.34 981.74,-800.79 964.79,-759.85"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="968.12,-758.74 961.06,-750.83 961.65,-761.41 968.12,-758.74"/>
+</g>
+<!-- R_L_mass -->
+<g id="node26" class="node">
+<title>R_L_mass</title>
+<path fill="#fcf3cf" stroke="#2c3e50" d="M1353.15,-753.25C1353.15,-753.25 1242.85,-753.25 1242.85,-753.25 1236.85,-753.25 1230.85,-747.25 1230.85,-741.25 1230.85,-741.25 1230.85,-721.25 1230.85,-721.25 1230.85,-715.25 1236.85,-709.25 1242.85,-709.25 1242.85,-709.25 1353.15,-709.25 1353.15,-709.25 1359.15,-709.25 1365.15,-715.25 1365.15,-721.25 1365.15,-721.25 1365.15,-741.25 1365.15,-741.25 1365.15,-747.25 1359.15,-753.25 1353.15,-753.25"/>
+<text xml:space="preserve" text-anchor="middle" x="1298" y="-740.25" font-family="Segoe UI" font-size="10.00">Leptons : 3 Yukawas chargés</text>
+<text xml:space="preserve" text-anchor="middle" x="1298" y="-728.25" font-family="Segoe UI" font-size="10.00">+ 3 masses ν (en unités de v)</text>
+<text xml:space="preserve" text-anchor="middle" x="1298" y="-716.25" font-family="Segoe UI" font-size="10.00">(6)</text>
+</g>
+<!-- N_L&#45;&gt;R_L_mass -->
+<g id="edge20" class="edge">
+<title>N_L-&gt;R_L_mass</title>
+<path fill="none" stroke="#7f8c8d" d="M1212,-828.61C1251.62,-811.53 1263.39,-800.02 1282.19,-763.51"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1285.09,-765.53 1286.46,-755.02 1278.84,-762.38 1285.09,-765.53"/>
+</g>
+<!-- R_L_mix -->
+<g id="node27" class="node">
+<title>R_L_mix</title>
+<path fill="#fcf3cf" stroke="#2c3e50" d="M1592.29,-749.25C1592.29,-749.25 1405.71,-749.25 1405.71,-749.25 1399.71,-749.25 1393.71,-743.25 1393.71,-737.25 1393.71,-737.25 1393.71,-725.25 1393.71,-725.25 1393.71,-719.25 1399.71,-713.25 1405.71,-713.25 1405.71,-713.25 1592.29,-713.25 1592.29,-713.25 1598.29,-713.25 1604.29,-719.25 1604.29,-725.25 1604.29,-725.25 1604.29,-737.25 1604.29,-737.25 1604.29,-743.25 1598.29,-749.25 1592.29,-749.25"/>
+<text xml:space="preserve" text-anchor="middle" x="1499" y="-734.25" font-family="Segoe UI" font-size="10.00">PMNS : 3 angles + 1 phase + 2 phases Majorana</text>
+<text xml:space="preserve" text-anchor="middle" x="1499" y="-722.25" font-family="Segoe UI" font-size="10.00">(6)</text>
+</g>
+<!-- N_L&#45;&gt;R_L_mix -->
+<g id="edge21" class="edge">
+<title>N_L-&gt;R_L_mix</title>
+<path fill="none" stroke="#7f8c8d" d="M1230.57,-840.46C1376.12,-825.11 1400.5,-816.5 1469.68,-756.94"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1471.94,-759.61 1477.2,-750.41 1467.35,-754.32 1471.94,-759.61"/>
+</g>
+<!-- R_LCDM6 -->
+<g id="node28" class="node">
+<title>R_LCDM6</title>
+<path fill="#fcf3cf" stroke="#2c3e50" d="M1830.51,-765.25C1830.51,-765.25 1645.49,-765.25 1645.49,-765.25 1639.49,-765.25 1633.49,-759.25 1633.49,-753.25 1633.49,-753.25 1633.49,-709.25 1633.49,-709.25 1633.49,-703.25 1639.49,-697.25 1645.49,-697.25 1645.49,-697.25 1830.51,-697.25 1830.51,-697.25 1836.51,-697.25 1842.51,-703.25 1842.51,-709.25 1842.51,-709.25 1842.51,-753.25 1842.51,-753.25 1842.51,-759.25 1836.51,-765.25 1830.51,-765.25"/>
+<text xml:space="preserve" text-anchor="middle" x="1738" y="-752.25" font-family="Segoe UI" font-size="10.00">ΛCDM (6)</text>
+<text xml:space="preserve" text-anchor="middle" x="1738" y="-740.25" font-family="Segoe UI" font-size="10.00">Ω_b h², Ω_c h² (densité baryons / matière noire)</text>
+<text xml:space="preserve" text-anchor="middle" x="1738" y="-728.25" font-family="Segoe UI" font-size="10.00">θ* (échelle angulaire du son), τ (réionisation)</text>
+<text xml:space="preserve" text-anchor="middle" x="1738" y="-716.25" font-family="Segoe UI" font-size="10.00">A_s, n_s (amplitude &amp; pente primordiales)</text>
+<text xml:space="preserve" text-anchor="middle" x="1738" y="-704.25" font-family="Segoe UI" font-size="10.00">(6)</text>
+</g>
+<!-- N_GR&#45;&gt;R_LCDM6 -->
+<g id="edge22" class="edge">
+<title>N_GR-&gt;R_LCDM6</title>
+<path fill="none" stroke="#7f8c8d" d="M1333.38,-844.05C1552.89,-826.34 1596.92,-820.61 1676.46,-771.59"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1677.92,-774.8 1684.54,-766.53 1674.21,-768.87 1677.92,-774.8"/>
+</g>
+<!-- N_LCDM&#45;&gt;R_LCDM6 -->
+<g id="edge23" class="edge">
+<title>N_LCDM-&gt;R_LCDM6</title>
+<path fill="none" stroke="#7f8c8d" d="M1453.97,-840.19C1598.37,-818.48 1634.28,-810.41 1686.61,-772.14"/>
+<polygon fill="#7f8c8d" stroke="#7f8c8d" points="1688.41,-775.17 1694.31,-766.37 1684.21,-769.56 1688.41,-775.17"/>
+</g>
+<!-- T_SUSY -->
+<g id="node29" class="node">
+<title>T_SUSY</title>
+<path fill="#f5eef8" stroke="#8e44ad" d="M714.53,-633.45C714.53,-633.45 629.47,-633.45 629.47,-633.45 623.47,-633.45 617.47,-627.45 617.47,-621.45 617.47,-621.45 617.47,-601.45 617.47,-601.45 617.47,-595.45 623.47,-589.45 629.47,-589.45 629.47,-589.45 714.53,-589.45 714.53,-589.45 720.53,-589.45 726.53,-595.45 726.53,-601.45 726.53,-601.45 726.53,-621.45 726.53,-621.45 726.53,-627.45 720.53,-633.45 714.53,-633.45"/>
+<text xml:space="preserve" text-anchor="middle" x="672" y="-620.45" font-family="Segoe UI" font-size="10.00">Supersymétrie (SUSY)</text>
+<text xml:space="preserve" text-anchor="middle" x="672" y="-608.45" font-family="Segoe UI" font-size="10.00">Relie Jauge &amp; Higgs</text>
+<text xml:space="preserve" text-anchor="middle" x="672" y="-596.45" font-family="Segoe UI" font-size="10.00">Stabilise la Hiérarchie</text>
+</g>
+<!-- R_G_run&#45;&gt;T_SUSY -->
+<g id="edge31" class="edge">
+<title>R_G_run-&gt;T_SUSY</title>
+<path fill="none" stroke="#8e44ad" stroke-dasharray="5,2" d="M699.58,-709.05C679.22,-686.92 674.44,-675.61 672.87,-644.9"/>
+<polygon fill="#8e44ad" stroke="#8e44ad" points="676.38,-645.07 672.51,-635.21 669.39,-645.33 676.38,-645.07"/>
+</g>
+<!-- T_GUT -->
+<g id="node30" class="node">
+<title>T_GUT</title>
+<path fill="#d6eaf8" stroke="#2e86c1" d="M728.59,-534.65C728.59,-534.65 629.41,-534.65 629.41,-534.65 623.41,-534.65 617.41,-528.65 617.41,-522.65 617.41,-522.65 617.41,-502.65 617.41,-502.65 617.41,-496.65 623.41,-490.65 629.41,-490.65 629.41,-490.65 728.59,-490.65 728.59,-490.65 734.59,-490.65 740.59,-496.65 740.59,-502.65 740.59,-502.65 740.59,-522.65 740.59,-522.65 740.59,-528.65 734.59,-534.65 728.59,-534.65"/>
+<text xml:space="preserve" text-anchor="middle" x="679" y="-521.65" font-family="Segoe UI" font-size="10.00">Grande Unification (GUT)</text>
+<text xml:space="preserve" text-anchor="middle" x="679" y="-509.65" font-family="Segoe UI" font-size="10.00">3 Couplages → 1 g_gut</text>
+<text xml:space="preserve" text-anchor="middle" x="679" y="-497.65" font-family="Segoe UI" font-size="10.00">(ΔDOF = -2)</text>
+</g>
+<!-- R_G_run&#45;&gt;T_GUT -->
+<g id="edge24" class="edge">
+<title>R_G_run-&gt;T_GUT</title>
+<path fill="none" stroke="#2e86c1" stroke-width="2" d="M706.54,-709.11C662.71,-641.43 659.14,-626.69 673.02,-546.19"/>
+<polygon fill="#2e86c1" stroke="#2e86c1" stroke-width="2" points="676.19,-548.37 674.47,-537.92 669.29,-547.16 676.19,-548.37"/>
+</g>
+<!-- T_PQ -->
+<g id="node31" class="node">
+<title>T_PQ</title>
+<path fill="#d6eaf8" stroke="#2e86c1" d="M894.82,-534.65C894.82,-534.65 781.18,-534.65 781.18,-534.65 775.18,-534.65 769.18,-528.65 769.18,-522.65 769.18,-522.65 769.18,-502.65 769.18,-502.65 769.18,-496.65 775.18,-490.65 781.18,-490.65 781.18,-490.65 894.82,-490.65 894.82,-490.65 900.82,-490.65 906.82,-496.65 906.82,-502.65 906.82,-502.65 906.82,-522.65 906.82,-522.65 906.82,-528.65 900.82,-534.65 894.82,-534.65"/>
+<text xml:space="preserve" text-anchor="middle" x="838" y="-521.65" font-family="Segoe UI" font-size="10.00">Peccei-Quinn (Axion)</text>
+<text xml:space="preserve" text-anchor="middle" x="838" y="-509.65" font-family="Segoe UI" font-size="10.00">θ_QCD → Dynamique (axion)</text>
+<text xml:space="preserve" text-anchor="middle" x="838" y="-497.65" font-family="Segoe UI" font-size="10.00">(ΔDOF ≈ 0)</text>
+</g>
+<!-- R_G_fix&#45;&gt;T_PQ -->
+<g id="edge25" class="edge">
+<title>R_G_fix-&gt;T_PQ</title>
+<path fill="none" stroke="#2e86c1" stroke-width="2" d="M813.6,-708.77C794.93,-650.63 796.25,-635.51 826.73,-545.6"/>
+<polygon fill="#2e86c1" stroke="#2e86c1" stroke-width="2" points="829.5,-548.32 829.41,-537.73 822.87,-546.07 829.5,-548.32"/>
+</g>
+<!-- R_H_run&#45;&gt;T_SUSY -->
+<g id="edge32" class="edge">
+<title>R_H_run-&gt;T_SUSY</title>
+<path fill="none" stroke="#8e44ad" stroke-dasharray="5,2" d="M633.17,-709.11C631.88,-685.55 635.18,-674.33 652.91,-643.56"/>
+<polygon fill="#8e44ad" stroke="#8e44ad" points="655.8,-645.56 657.83,-635.16 649.76,-642.02 655.8,-645.56"/>
+</g>
+<!-- R_H_dim&#45;&gt;T_SUSY -->
+<g id="edge33" class="edge">
+<title>R_H_dim-&gt;T_SUSY</title>
+<path fill="none" stroke="#8e44ad" stroke-dasharray="5,2" d="M545.33,-709.02C563.84,-686.34 577.93,-674.95 629.32,-640.15"/>
+<polygon fill="#8e44ad" stroke="#8e44ad" points="631.04,-643.21 637.36,-634.71 627.12,-637.41 631.04,-643.21"/>
+</g>
+<!-- T_FLAVOR -->
+<g id="node32" class="node">
+<title>T_FLAVOR</title>
+<path fill="#f5eef8" stroke="#8e44ad" d="M1058.49,-534.65C1058.49,-534.65 947.51,-534.65 947.51,-534.65 941.51,-534.65 935.51,-528.65 935.51,-522.65 935.51,-522.65 935.51,-502.65 935.51,-502.65 935.51,-496.65 941.51,-490.65 947.51,-490.65 947.51,-490.65 1058.49,-490.65 1058.49,-490.65 1064.49,-490.65 1070.49,-496.65 1070.49,-502.65 1070.49,-502.65 1070.49,-522.65 1070.49,-522.65 1070.49,-528.65 1064.49,-534.65 1058.49,-534.65"/>
+<text xml:space="preserve" text-anchor="middle" x="1003" y="-521.65" font-family="Segoe UI" font-size="10.00">Symétries de Saveur</text>
+<text xml:space="preserve" text-anchor="middle" x="1003" y="-509.65" font-family="Segoe UI" font-size="10.00">22 → ~4 paramètres (modèle)</text>
+<text xml:space="preserve" text-anchor="middle" x="1003" y="-497.65" font-family="Segoe UI" font-size="10.00">(ΔDOF = 0 à -18)</text>
+</g>
+<!-- R_Q_mass&#45;&gt;T_FLAVOR -->
+<g id="edge26" class="edge">
+<title>R_Q_mass-&gt;T_FLAVOR</title>
+<path fill="none" stroke="#8e44ad" stroke-width="2" d="M1118.95,-713.04C1108.02,-649.2 1101.1,-635.84 1027.91,-543.86"/>
+<polygon fill="#8e44ad" stroke="#8e44ad" stroke-width="2" points="1031.71,-543.02 1022.75,-537.38 1026.24,-547.38 1031.71,-543.02"/>
+</g>
+<!-- R_Q_mix&#45;&gt;T_FLAVOR -->
+<g id="edge27" class="edge">
+<title>R_Q_mix-&gt;T_FLAVOR</title>
+<path fill="none" stroke="#8e44ad" stroke-width="2" d="M965.87,-713.01C1001.63,-661.61 1004.79,-647.1 1003.5,-546.34"/>
+<polygon fill="#8e44ad" stroke="#8e44ad" stroke-width="2" points="1007.03,-547.95 1003.39,-538 1000.03,-548.05 1007.03,-547.95"/>
+</g>
+<!-- R_L_mass&#45;&gt;T_FLAVOR -->
+<g id="edge28" class="edge">
+<title>R_L_mass-&gt;T_FLAVOR</title>
+<path fill="none" stroke="#8e44ad" stroke-width="2" d="M1278.54,-708.8C1224.39,-646.91 1204.54,-632.55 1050.51,-540.88"/>
+<polygon fill="#8e44ad" stroke="#8e44ad" stroke-width="2" points="1053.64,-538.67 1043.26,-536.57 1050.07,-544.69 1053.64,-538.67"/>
+</g>
+<!-- R_L_mix&#45;&gt;T_FLAVOR -->
+<g id="edge29" class="edge">
+<title>R_L_mix-&gt;T_FLAVOR</title>
+<path fill="none" stroke="#8e44ad" stroke-width="2" d="M1469.6,-712.94C1364.35,-647.69 1335.43,-634.98 1074.61,-538.98"/>
+<polygon fill="#8e44ad" stroke="#8e44ad" stroke-width="2" points="1077.47,-536.3 1066.87,-536.13 1075.05,-542.87 1077.47,-536.3"/>
+</g>
+<!-- T_INF -->
+<g id="node33" class="node">
+<title>T_INF</title>
+<path fill="#d6eaf8" stroke="#2e86c1" d="M1226.8,-534.65C1226.8,-534.65 1111.2,-534.65 1111.2,-534.65 1105.2,-534.65 1099.2,-528.65 1099.2,-522.65 1099.2,-522.65 1099.2,-502.65 1099.2,-502.65 1099.2,-496.65 1105.2,-490.65 1111.2,-490.65 1111.2,-490.65 1226.8,-490.65 1226.8,-490.65 1232.8,-490.65 1238.8,-496.65 1238.8,-502.65 1238.8,-502.65 1238.8,-522.65 1238.8,-522.65 1238.8,-528.65 1232.8,-534.65 1226.8,-534.65"/>
+<text xml:space="preserve" text-anchor="middle" x="1169" y="-521.65" font-family="Segoe UI" font-size="10.00">Inflation Mono-champ</text>
+<text xml:space="preserve" text-anchor="middle" x="1169" y="-509.65" font-family="Segoe UI" font-size="10.00">(A_s, n_s) : 2 → potentiel (≥2)</text>
+<text xml:space="preserve" text-anchor="middle" x="1169" y="-497.65" font-family="Segoe UI" font-size="10.00">(ΔDOF ≈ 0)</text>
+</g>
+<!-- R_LCDM6&#45;&gt;T_INF -->
+<g id="edge30" class="edge">
+<title>R_LCDM6-&gt;T_INF</title>
+<path fill="none" stroke="#2e86c1" stroke-width="2" d="M1678.29,-696.95C1576.05,-639.38 1527.08,-622.25 1249.68,-537.32"/>
+<polygon fill="#2e86c1" stroke="#2e86c1" stroke-width="2" points="1252.35,-534.48 1241.76,-534.9 1250.3,-541.17 1252.35,-534.48"/>
+</g>
+<!-- T_SUSY&#45;&gt;T_GUT -->
+<g id="edge34" class="edge">
+<title>T_SUSY-&gt;T_GUT</title>
+<path fill="none" stroke="#8e44ad" stroke-dasharray="1,5" d="M664.83,-589.15C659.38,-570.66 658.92,-561.09 664.53,-545.47"/>
+<polygon fill="#8e44ad" stroke="#8e44ad" points="667.76,-546.81 668.25,-536.23 661.27,-544.2 667.76,-546.81"/>
+<text xml:space="preserve" text-anchor="middle" x="689.25" y="-559.35" font-family="Times,serif" font-size="9.00">Support</text>
+</g>
+<!-- TOE -->
+<g id="node34" class="node">
+<title>TOE</title>
+<polygon fill="#f1948a" stroke="#2c3e50" stroke-width="2" points="1072.29,-275.43 893.31,-275.43 838,-445.65 782.69,-275.43 603.71,-275.43 748.51,-170.22 693.2,0 838,-105.2 982.8,0 927.49,-170.22 1072.29,-275.43"/>
+<text xml:space="preserve" text-anchor="middle" x="838" y="-226.43" font-family="Segoe UI" font-size="12.00">CODE SOURCE ULTIME (ToE)</text>
+<text xml:space="preserve" text-anchor="middle" x="838" y="-212.03" font-family="Segoe UI" font-size="12.00">L'Univers à ~ 5–10 Paramètres</text>
+</g>
+<!-- T_SUSY&#45;&gt;TOE -->
+<g id="edge35" class="edge">
+<title>T_SUSY-&gt;TOE</title>
+<path fill="none" stroke="#e74c3c" d="M673.58,-588.96C686.74,-402.98 692.1,-367.67 774.65,-284.06"/>
+<polygon fill="#e74c3c" stroke="#e74c3c" points="776.95,-286.71 781.54,-277.15 772,-281.76 776.95,-286.71"/>
+</g>
+<!-- T_GUT&#45;&gt;TOE -->
+<g id="edge36" class="edge">
+<title>T_GUT-&gt;TOE</title>
+<path fill="none" stroke="#e74c3c" d="M683.09,-490.24C706,-365.24 714.76,-329.19 763.45,-283.52"/>
+<polygon fill="#e74c3c" stroke="#e74c3c" points="765.79,-286.12 770.84,-276.8 761.09,-280.94 765.79,-286.12"/>
+</g>
+<!-- T_PQ&#45;&gt;TOE -->
+<g id="edge37" class="edge">
+<title>T_PQ-&gt;TOE</title>
+<path fill="none" stroke="#e74c3c" d="M835.15,-490.16C831.6,-462.2 828.65,-438.62 826.29,-418.37"/>
+<polygon fill="#e74c3c" stroke="#e74c3c" points="829.79,-418.18 825.18,-408.65 822.84,-418.98 829.79,-418.18"/>
+</g>
+<!-- T_FLAVOR&#45;&gt;TOE -->
+<g id="edge38" class="edge">
+<title>T_FLAVOR-&gt;TOE</title>
+<path fill="none" stroke="#e74c3c" d="M993.93,-490.25C945.19,-369.97 926.31,-325.02 899.38,-288.87"/>
+<polygon fill="#e74c3c" stroke="#e74c3c" points="902.17,-286.76 893.27,-281.02 896.65,-291.06 902.17,-286.76"/>
+</g>
+<!-- T_INF&#45;&gt;TOE -->
+<g id="edge39" class="edge">
+<title>T_INF-&gt;TOE</title>
+<path fill="none" stroke="#e74c3c" d="M1155.74,-490.16C1081.17,-363.77 1050.19,-314.68 992.44,-281.3"/>
+<polygon fill="#e74c3c" stroke="#e74c3c" points="994.31,-278.33 983.86,-276.59 990.94,-284.47 994.31,-278.33"/>
+</g>
+</g>
+</svg>
