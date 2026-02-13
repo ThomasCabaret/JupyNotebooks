@@ -1,0 +1,117 @@
+digraph Universe_Hourglass_Counting {
+  rankdir=TB;
+  compound=true;
+  newrank=true;
+  nodesep=0.4;
+  ranksep=0.6;
+  fontname="Segoe UI, Arial";
+  splines=curved;
+
+  node [fontname="Segoe UI", shape=box, style="filled,rounded", fillcolor="#FDFEFE", color="#2C3E50", fontsize=10, class="role-node-default"];
+  edge [color="#7F8C8D", fontsize=9, class="role-edge-default"];
+
+  // ==========================================
+  // NIVEAUX SUPÉRIEURS (MICRO & MACRO)
+  // ==========================================
+  { rank=same;
+    MICRO_ROOT [label="MICRO-PHYSIQUE", shape=hexagon, fillcolor="#2E86C1", fontcolor=white, fontsize=12, class="step1 role-root-micro"];
+    MACRO_ROOT [label="MACRO-PHYSIQUE", shape=hexagon, fillcolor="#D35400", fontcolor=white, fontsize=12, class="step1 role-root-macro"];
+  }
+
+  MICRO_ROOT -> {GAUGE_S HIGGS_S FLAVOR_S} [color="#AED6F1", class="step2 role-edge-micro"];
+  MACRO_ROOT -> {GRAV_S COSMO_S} [color="#FAD7A0", class="step2 role-edge-macro"];
+
+  subgraph cluster_micro_sectors {
+    label="Secteurs Micro"; style=dashed; color="#AED6F1"; class="step2 role-cluster-micro";
+    GAUGE_S  [label="Secteur de Jauge\n(Forces)", class="step2 role-sector-micro"];
+    HIGGS_S  [label="Secteur de Higgs\n(Mécanisme de masse)", class="step2 role-sector-micro"];
+    FLAVOR_S [label="Secteur de Saveur\n(Matière/particules)", class="step2 role-sector-micro"];
+  }
+  subgraph cluster_macro_sectors {
+    label="Secteurs Macro"; style=dashed; color="#FAD7A0"; class="step2 role-cluster-macro";
+    GRAV_S [label="Gravitation", class="step2 role-sector-macro"];
+    COSMO_S [label="Cosmologie", class="step2 role-sector-macro"];
+  }
+
+  // ==========================================
+  // NIVEAU 3 : VUE NAÏVE
+  // ==========================================
+  subgraph cluster_naive {
+    label="VUE NAÏVE (Variables mathématiques)"; style=filled; fillcolor="#F4F6F6"; color="#BDC3C7"; class="step3 role-cluster-naive";
+    { rank=same;
+      N_G    [label="g1, g2, g3, θ_QCD\n(4 paramètres)", fillcolor="#EBEDEF", class="step3 role-naive-gauge"];
+      N_H    [label="µ², λ\n(2 paramètres)", fillcolor="#EBEDEF", class="step3 role-naive-higgs"];
+
+      // Yukawa brutes (indicatif, avant réduction physique)
+      N_Q    [label="Matrices Yukawa (Quarks)\nYu, Yd : 36 params bruts", fillcolor="#FADBD8", class="step3 role-naive-quark"];
+      N_L    [label="Matrices Yukawa (Leptons)\nYe, Yν : 36 params bruts", fillcolor="#FADBD8", class="step3 role-naive-lepton"];
+
+      N_GR   [label="G, c\n(2 paramètres)", fillcolor="#FDEBD0", class="step3 role-naive-grav"];
+      N_LCDM [label="Paramètres ΛCDM\n(6 paramètres)", fillcolor="#FDEBD0", class="step3 role-naive-cosmo"];
+    }
+  }
+  GAUGE_S -> N_G [class="step3 role-edge-naive"];
+  HIGGS_S -> N_H [class="step3 role-edge-naive"];
+  FLAVOR_S -> {N_Q N_L} [class="step3 role-edge-naive"];
+  GRAV_S -> N_GR [class="step3 role-edge-naive"];
+  COSMO_S -> N_LCDM [class="step3 role-edge-naive"];
+
+  // ==========================================
+  // NIVEAU 4 : RÉDUCTION PHYSIQUE (Établi) — VERSION ADIMENSIONNELLE
+  // ==========================================
+  subgraph cluster_reduced {
+    label="RÉDUCTION PHYSIQUE (Paramètres mesurés)";
+    style=filled; fillcolor="#D1F2EB"; color="#16A085"; class="step4 role-cluster-reduced";
+    { rank=same;
+      // Jauge (4)
+      R_G_run  [label="g1, g2, g3\n(Running)\n(3)", fillcolor="#E8DAEF", class="step4 role-reduced-running"];
+      R_G_fix  [label="θ_QCD (CP fort)\n(Fixe)\n(1)", fillcolor="#FCF3CF", class="step4 role-reduced-dimensionless"];
+
+      // Higgs (2) — v rendu adimensionnel via une échelle de référence µ0
+      R_H_run  [label="λ\n(Running)\n(1)", fillcolor="#E8DAEF", class="step4 role-reduced-running"];
+      R_H_dim  [label="v/µ0\n(Échelle VEV adim.)\n(1)", fillcolor="#FCF3CF", class="step4 role-reduced-dimensionless"];
+
+      // Quarks (10)
+      R_Q_mass [label="Yukawas quarks → masses relatives\n(6)", fillcolor="#E8DAEF", class="step4 role-reduced-running"];
+      R_Q_mix  [label="CKM : 3 angles + 1 phase\n(4)", fillcolor="#FCF3CF", class="step4 role-reduced-dimensionless"];
+
+      // Leptons (10) — masses rendues adimensionnelles (Yukawas + ratios neutrinos)
+      R_L_mass [label="Leptons : 3 Yukawas chargés\n+ 3 masses ν (en unités de v)\n(6)", fillcolor="#FCF3CF", class="step4 role-reduced-dimensionless"];
+      R_L_mix  [label="PMNS : 3 angles + 1 phase + 2 phases Majorana\n(6)", fillcolor="#FCF3CF", class="step4 role-reduced-dimensionless"];
+
+      // Macro (6)
+      R_LCDM6  [label="ΛCDM (6)\nΩ_b h², Ω_c h² (densité baryons / matière noire)\nθ* (échelle angulaire du son), τ (réionisation)\nA_s, n_s (amplitude & pente primordiales)\n(6)", fillcolor="#FCF3CF", class="step4 role-reduced-dimensionless"];
+    }
+  }
+
+  N_G -> {R_G_run R_G_fix} [class="step4 role-edge-reduced"];
+  N_H -> {R_H_run R_H_dim} [class="step4 role-edge-reduced"];
+  N_Q -> {R_Q_mass R_Q_mix} [class="step4 role-edge-reduced"];
+  N_L -> {R_L_mass R_L_mix} [class="step4 role-edge-reduced"];
+  N_GR -> R_LCDM6 [class="step4 role-edge-reduced"];
+  N_LCDM -> R_LCDM6 [class="step4 role-edge-reduced"];
+
+  // ==========================================
+  // NIVEAU 5 : COMPTAGE (au lieu d'unification)
+  // ==========================================
+  subgraph cluster_counting {
+    label="COMPTAGE (Réduction → Totaux)";
+    style=filled; fillcolor="#FEF9E7"; color="#F1C40F"; class="step5 role-cluster-counting";
+
+    MICRO_COUNT [label="TOTAL MICRO\n= 28 paramètres", shape=ellipse, fillcolor="#D6EAF8", color="#2E86C1", fontsize=12, class="step5 role-count-micro"];
+    MACRO_COUNT [label="TOTAL MACRO\n= 6 paramètres",  shape=ellipse, fillcolor="#FDEBD0", color="#D35400", fontsize=12, class="step5 role-count-macro"];
+    TOTAL_COUNT [label="TOTAL (MICRO + MACRO)\n= 34 paramètres", shape=octagon, fillcolor="#F1948A", style="filled,bold", fontsize=13, class="step5 role-count-total"];
+  }
+
+  // Micro → total micro (26)
+  {R_G_run R_G_fix R_H_run R_H_dim R_Q_mass R_Q_mix R_L_mass R_L_mix} -> MICRO_COUNT [style=bold, color="#2E86C1", class="step5 role-edge-count-micro"];
+
+  // Macro → total macro (6)
+  {R_LCDM6} -> MACRO_COUNT [style=bold, color="#D35400", class="step5 role-edge-count-macro"];
+
+  // Totaux → total global
+  {MICRO_COUNT MACRO_COUNT} -> TOTAL_COUNT [style=bold, color="#E74C3C", class="step5 role-edge-count-total"];
+
+  // Alignement final pour la propreté
+  { rank=same; MICRO_COUNT MACRO_COUNT }
+}

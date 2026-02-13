@@ -1,0 +1,315 @@
+svg {
+    background-color: #0b0f1a;
+}
+
+/* Text */
+text {
+    fill: #e6f1ff;
+    font-weight: 500;
+}
+
+/* =========================================================================
+   HARD FALLBACKS (Graphviz native classes)
+   Covers anything that misses role-* classes.
+   ========================================================================= */
+
+/* Nodes: include path (rounded boxes are usually <path>) */
+.node path,
+.node polygon,
+.node rect,
+.node ellipse {
+    fill: #1a2138;
+    stroke: rgba(230, 241, 255, 0.75);
+    stroke-width: 0.9;
+}
+
+/* Clusters */
+.cluster polygon {
+    fill: #141b33;
+    stroke: #7aa2ff;
+    stroke-width: 1.1;
+}
+
+/* Edges: no fill on curves, arrowheads filled */
+.edge path,
+.edge polyline {
+    stroke: #7aa2ff;
+    stroke-width: 1.3;
+    fill: none;
+}
+.edge polygon {
+    stroke: #7aa2ff;
+    fill: #7aa2ff;
+}
+
+/* =========================================================================
+   GENERIC ROLE TOGGLES (fine-grain roles)
+   ========================================================================= */
+
+/* Node fill/stroke must also target <path> */
+.role-node-fill path,
+.role-node-fill polygon,
+.role-node-fill rect,
+.role-node-fill ellipse {
+    fill: #1a2138;
+}
+
+.role-node-stroke path,
+.role-node-stroke polygon,
+.role-node-stroke rect,
+.role-node-stroke ellipse {
+    stroke: rgba(230, 241, 255, 0.75);
+    stroke-width: 0.9;
+}
+
+/* Cluster fill/stroke */
+.role-cluster-fill polygon {
+    fill: #141b33;
+}
+.role-cluster-stroke polygon {
+    stroke: #7aa2ff;
+    stroke-width: 1.1;
+}
+
+/* Edge stroke/arrowhead */
+.role-edge-stroke path,
+.role-edge-stroke polyline {
+    stroke: #7aa2ff;
+    stroke-width: 1.3;
+    fill: none;
+}
+.role-edge-arrowhead polygon {
+    stroke: #7aa2ff;
+    fill: #7aa2ff;
+}
+
+/* Text roles */
+.role-text-invert text { fill: #0b0f1a; }
+.role-text-normal text { fill: #e6f1ff; }
+
+/* =========================================================================
+   TOP ROOTS (cover both polygon and path)
+   ========================================================================= */
+
+.role-root-micro polygon,
+.role-root-micro path {
+    fill: #00f5ff;
+    stroke: #00f5ff;
+    stroke-width: 1.6;
+}
+
+.role-root-macro polygon,
+.role-root-macro path {
+    fill: #ff2bd6;
+    stroke: #ff2bd6;
+    stroke-width: 1.6;
+}
+
+/* If you ever remove role-text-invert, this keeps roots readable */
+.role-root text {
+    fill: #0b0f1a;
+}
+
+/* =========================================================================
+   SECTORS
+   ========================================================================= */
+
+.role-cluster-micro polygon {
+    fill: #0f1f2a;
+    stroke: #00f5ff;
+    stroke-width: 1.2;
+}
+
+.role-cluster-macro polygon {
+    fill: #2a0f22;
+    stroke: #ff2bd6;
+    stroke-width: 1.2;
+}
+
+/* Sector nodes (rounded boxes => include path) */
+.role-sector-micro polygon,
+.role-sector-micro path {
+    fill: #1c2545;
+    stroke: #8be9ff;
+    stroke-width: 1.2;
+}
+
+.role-sector-macro polygon,
+.role-sector-macro path {
+    fill: #2b1533;
+    stroke: #ff7be7;
+    stroke-width: 1.2;
+}
+
+/* Edges from roots to sectors */
+.role-edge-micro path,
+.role-edge-micro polyline {
+    stroke: #00f5ff;
+    stroke-width: 1.4;
+    fill: none;
+}
+.role-edge-micro polygon {
+    stroke: #00f5ff;
+    fill: #00f5ff;
+}
+
+.role-edge-macro path,
+.role-edge-macro polyline {
+    stroke: #ff2bd6;
+    stroke-width: 1.4;
+    fill: none;
+}
+.role-edge-macro polygon {
+    stroke: #ff2bd6;
+    fill: #ff2bd6;
+}
+
+/* =========================================================================
+   NAIVE LAYER
+   ========================================================================= */
+
+.role-cluster-naive polygon {
+    fill: #141b33;
+    stroke: #7aa2ff;
+    stroke-width: 1.2;
+}
+
+/* Naive nodes (include path) */
+.role-naive-gauge polygon,
+.role-naive-gauge path,
+.role-naive-higgs polygon,
+.role-naive-higgs path {
+    fill: #1b2240;
+    stroke: #7aa2ff;
+    stroke-width: 1.2;
+}
+
+.role-naive-quark polygon,
+.role-naive-quark path,
+.role-naive-lepton polygon,
+.role-naive-lepton path {
+    fill: #241a3a;
+    stroke: #c77dff;
+    stroke-width: 1.2;
+}
+
+.role-naive-grav polygon,
+.role-naive-grav path,
+.role-naive-cosmo polygon,
+.role-naive-cosmo path {
+    fill: #2a2410;
+    stroke: #ffe066;
+    stroke-width: 1.2;
+}
+
+/* Edges to naive layer */
+.role-edge-naive path,
+.role-edge-naive polyline {
+    stroke: #7aa2ff;
+    stroke-width: 1.3;
+    fill: none;
+}
+.role-edge-naive polygon {
+    stroke: #7aa2ff;
+    fill: #7aa2ff;
+}
+
+/* =========================================================================
+   REDUCED LAYER
+   ========================================================================= */
+
+.role-cluster-reduced polygon {
+    fill: #0f241d;
+    stroke: #00ffa6;
+    stroke-width: 1.2;
+}
+
+/* Reduced nodes (include path) */
+.role-reduced-dimensionless polygon,
+.role-reduced-dimensionless path {
+    fill: #2a2410;
+    stroke: #ffe066;
+    stroke-width: 1.2;
+}
+
+.role-reduced-running polygon,
+.role-reduced-running path {
+    fill: #221438;
+    stroke: #c77dff;
+    stroke-width: 1.2;
+}
+
+/* Edges to reduced layer */
+.role-edge-reduced path,
+.role-edge-reduced polyline {
+    stroke: #00ffa6;
+    stroke-width: 1.3;
+    fill: none;
+}
+.role-edge-reduced polygon {
+    stroke: #00ffa6;
+    fill: #00ffa6;
+}
+
+/* =========================================================================
+   COUNTING
+   ========================================================================= */
+
+.role-cluster-counting polygon {
+    fill: #181018;
+    stroke: #ff6ec7;
+    stroke-width: 1.2;
+}
+
+.role-count-micro ellipse {
+    fill: #132c3a;
+    stroke: #00f5ff;
+    stroke-width: 1.5;
+}
+
+.role-count-macro ellipse {
+    fill: #3a102c;
+    stroke: #ff2bd6;
+    stroke-width: 1.5;
+}
+
+.role-count-total polygon,
+.role-count-total path {
+    fill: #2a0f1a;
+    stroke: #ff6ec7;
+    stroke-width: 1.5;
+}
+
+/* Counting edges */
+.role-edge-count-micro path,
+.role-edge-count-micro polyline {
+    stroke: #00f5ff;
+    stroke-width: 1.5;
+    fill: none;
+}
+.role-edge-count-micro polygon {
+    stroke: #00f5ff;
+    fill: #00f5ff;
+}
+
+.role-edge-count-macro path,
+.role-edge-count-macro polyline {
+    stroke: #ff2bd6;
+    stroke-width: 1.5;
+    fill: none;
+}
+.role-edge-count-macro polygon {
+    stroke: #ff2bd6;
+    fill: #ff2bd6;
+}
+
+.role-edge-count-total path,
+.role-edge-count-total polyline {
+    stroke: #ff6ec7;
+    stroke-width: 1.5;
+    fill: none;
+}
+.role-edge-count-total polygon {
+    stroke: #ff6ec7;
+    fill: #ff6ec7;
+}
