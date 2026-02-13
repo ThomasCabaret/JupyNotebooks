@@ -313,3 +313,122 @@ text {
     stroke: #ff6ec7;
     fill: #ff6ec7;
 }
+
+/* =========================================================================
+   THEORIES / UNIFICATION (Refined diagram additions)
+   ========================================================================= */
+
+.role-cluster-theories polygon {
+    fill: #1a1426;
+    stroke: #ffe066;
+    stroke-width: 1.2;
+}
+
+.role-theory polygon,
+.role-theory path {
+    fill: #1a2138;
+    stroke: rgba(230, 241, 255, 0.75);
+    stroke-width: 0.9;
+}
+
+.role-theory-susy polygon,
+.role-theory-susy path {
+    fill: #221438;
+    stroke: #c77dff;
+    stroke-width: 1.2;
+}
+
+.role-theory-flavor polygon,
+.role-theory-flavor path {
+    fill: #241a3a;
+    stroke: #c77dff;
+    stroke-width: 1.2;
+}
+
+.role-theory-gut polygon,
+.role-theory-gut path {
+    fill: #0f1f2a;
+    stroke: #00f5ff;
+    stroke-width: 1.2;
+}
+
+.role-theory-pq polygon,
+.role-theory-pq path {
+    fill: #0f1f2a;
+    stroke: #00f5ff;
+    stroke-width: 1.2;
+}
+
+.role-theory-inf polygon,
+.role-theory-inf path {
+    fill: #0f1f2a;
+    stroke: #00f5ff;
+    stroke-width: 1.2;
+}
+
+.role-edge-theory path,
+.role-edge-theory polyline {
+    stroke: #ffe066;
+    stroke-width: 1.3;
+    fill: none;
+}
+.role-edge-theory polygon {
+    stroke: #ffe066;
+    fill: #ffe066;
+}
+
+.role-edge-theory-gut path,
+.role-edge-theory-gut polyline,
+.role-edge-theory-pq path,
+.role-edge-theory-pq polyline,
+.role-edge-theory-inf path,
+.role-edge-theory-inf polyline {
+    stroke: #00f5ff;
+    stroke-width: 1.4;
+    fill: none;
+}
+.role-edge-theory-gut polygon,
+.role-edge-theory-pq polygon,
+.role-edge-theory-inf polygon {
+    stroke: #00f5ff;
+    fill: #00f5ff;
+}
+
+.role-edge-theory-susy path,
+.role-edge-theory-susy polyline,
+.role-edge-theory-flavor path,
+.role-edge-theory-flavor polyline,
+.role-edge-theory-support path,
+.role-edge-theory-support polyline {
+    stroke: #c77dff;
+    stroke-width: 1.4;
+    fill: none;
+}
+.role-edge-theory-susy polygon,
+.role-edge-theory-flavor polygon,
+.role-edge-theory-support polygon {
+    stroke: #c77dff;
+    fill: #c77dff;
+}
+
+.role-toe polygon,
+.role-toe path,
+.role-toe ellipse,
+.role-toe circle {
+    fill: #2a0f1a;
+    stroke: #ff6ec7;
+    stroke-width: 1.6;
+}
+
+.role-edge-toe path,
+.role-edge-toe polyline {
+    stroke: #ff6ec7;
+    stroke-width: 1.5;
+    fill: none;
+}
+.role-edge-toe polygon {
+    stroke: #ff6ec7;
+    fill: #ff6ec7;
+}
+
+.role-toe text { fill: #e6f1ff; }

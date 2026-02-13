@@ -162,7 +162,19 @@ def main():
         base_tree = ET.parse(svg_path)
         base_name = os.path.splitext(os.path.basename(svg_path))[0]
 
-        for step in range(1, 6):
+        detected_max_step = 1
+        for elem in base_tree.getroot().iter():
+            cls = elem.attrib.get("class", "")
+            for token in cls.split():
+                if token.startswith("step"):
+                    try:
+                        n = int(token.replace("step", ""))
+                        if n > detected_max_step:
+                            detected_max_step = n
+                    except ValueError:
+                        pass
+
+        for step in range(1, detected_max_step + 1):
             print(f"\n--- Step {step} ---")
             tree_copy = copy.deepcopy(base_tree)
             result = process_step(tree_copy, css_text, step)
