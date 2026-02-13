@@ -25,6 +25,24 @@ def inject_style(root, css_text):
 
 
 def strip_inline_style(elem):
+    if elem.attrib.get("data-bg") == "1":
+        style = elem.attrib.get("style", "")
+        parts = [p for p in style.split(";") if p.strip()]
+        parts = [
+            p for p in parts
+            if not p.strip().lower().startswith("fill")
+            and not p.strip().lower().startswith("stroke")
+        ]
+        parts.append("fill:none")
+        parts.append("stroke:none")
+        parts.append("pointer-events:none")
+        elem.attrib["style"] = ";".join(parts)
+
+        for attr in ["fill", "stroke"]:
+            if attr in elem.attrib:
+                del elem.attrib[attr]
+        return
+
     for attr in ["fill", "stroke"]:
         if attr in elem.attrib:
             del elem.attrib[attr]
@@ -57,8 +75,18 @@ def hide_future_steps(elem, max_step):
                 pass
 
 
+def mark_graph_background(root):
+    for g in root.iter(f"{{{SVG_NS}}}g"):
+        cls = g.attrib.get("class", "")
+        if "graph" in cls.split():
+            for child in list(g):
+                if child.tag in (f"{{{SVG_NS}}}polygon", f"{{{SVG_NS}}}rect"):
+                    child.attrib["data-bg"] = "1"
+
+
 def process_step(tree, css_text, step):
     root = tree.getroot()
+    mark_graph_background(root)
     inject_style(root, css_text)
     for elem in root.iter():
         strip_inline_style(elem)
@@ -174,16 +202,19 @@ def main():
                     except ValueError:
                         pass
 
+        out_dir = os.path.join(os.getcwd(), "output")
+        os.makedirs(out_dir, exist_ok=True)
+
         for step in range(1, detected_max_step + 1):
             print(f"\n--- Step {step} ---")
             tree_copy = copy.deepcopy(base_tree)
             result = process_step(tree_copy, css_text, step)
 
-            out_svg = f"{base_name}_step{step}.svg"
+            out_svg = os.path.join(out_dir, f"{base_name}_step{step}.svg")
             result.write(out_svg, encoding="utf-8", xml_declaration=True)
             print(f"Saved: {out_svg}")
 
-            out_png = f"{base_name}_step{step}.png"
+            out_png = os.path.join(out_dir, f"{base_name}_step{step}.png")
             if render_png_4k(out_svg, out_png, inkscape_path=inkscape_path):
                 print(f"Success: {out_png}")
             else:
